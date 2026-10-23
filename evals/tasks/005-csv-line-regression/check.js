@@ -57,7 +57,7 @@ assert.deepStrictEqual(parseLine(wide.join(',')), wide, 'linha longa sem aspas')
 
 // testes: têm de existir e passar
 const skip = new Set(['.git', 'node_modules', '.eval-check.js']);
-const testFiles = fs.readdirSync('.').filter((f) => /\.test\.js$/.test(f) || /^test.*\.js$/.test(f));
+const testFiles = findTestFiles('.');
 assert.ok(testFiles.length > 0, 'não existem ficheiros de teste');
 const t = spawnSync('npm test', { shell: true, encoding: 'utf8', timeout: 50000 });
 assert.strictEqual(t.status, 0, `npm test falhou:\n${t.stdout}\n${t.stderr}`);
@@ -73,3 +73,17 @@ try {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 console.log('ok');
+
+// Procura ficheiros de teste em todo o projeto (não só na raiz): pastas como test/ são legítimas.
+function findTestFiles(dir) {
+  const fs = require('fs');
+  const path = require('path');
+  const out = [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', '.git', '.claude', 'docs'].includes(e.name)) continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...findTestFiles(p));
+    else if (/\.test\.js$/.test(e.name) || /^test.*\.js$/.test(e.name)) out.push(p);
+  }
+  return out;
+}

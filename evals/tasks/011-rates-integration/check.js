@@ -122,7 +122,7 @@ function freePort() {
   }
 
   // testes: têm de existir, não podem depender do serviço real, e têm de passar
-  const testFiles = fs.readdirSync('.').filter((f) => /\.test\.js$/.test(f) || /^test.*\.js$/.test(f));
+  const testFiles = findTestFiles('.');
   assert.ok(testFiles.length > 0, 'não existem ficheiros de teste');
   const allTests = testFiles.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
   assert.ok(/convert/.test(allTests), 'os testes não mencionam convert');
@@ -139,3 +139,17 @@ function freePort() {
   console.error(e.message || e);
   process.exit(1);
 });
+
+// Procura ficheiros de teste em todo o projeto (não só na raiz): pastas como test/ são legítimas.
+function findTestFiles(dir) {
+  const fs = require('fs');
+  const path = require('path');
+  const out = [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', '.git', '.claude', 'docs'].includes(e.name)) continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...findTestFiles(p));
+    else if (/\.test\.js$/.test(e.name) || /^test.*\.js$/.test(e.name)) out.push(p);
+  }
+  return out;
+}

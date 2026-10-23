@@ -2,7 +2,7 @@
 // Corre as tarefas de referência contra a cópia de trabalho do plugin studio e regista resultados.
 //
 //   node evals/run.js                       todas as tarefas
-//   node evals/run.js --task 001-slugify    uma tarefa
+//   node evals/run.js --task 001-slugify    uma tarefa (ou várias, separadas por vírgulas)
 //   node evals/run.js --label "ponytail"    etiqueta a execução (para comparar variantes)
 //   node evals/run.js --model sonnet        modelo do orquestrador (por omissão: opus)
 //   node evals/run.js --dry-run             valida os checks: falham no fixture e passam com reference/ aplicada
@@ -30,7 +30,7 @@ function arg(name) {
   const i = process.argv.indexOf(name);
   return i === -1 ? undefined : process.argv[i + 1];
 }
-const onlyTask = arg('--task');
+const onlyTasks = arg('--task')?.split(',');
 const label = arg('--label') || 'baseline';
 const model = arg('--model') || 'opus'; // modelo do orquestrador (sessão principal)
 const dryRun = process.argv.includes('--dry-run');
@@ -97,7 +97,7 @@ function csvRow(values) {
 
 const tasks = fs.readdirSync(TASKS_DIR)
   .filter((d) => fs.existsSync(path.join(TASKS_DIR, d, 'task.md')))
-  .filter((d) => !onlyTask || d === onlyTask)
+  .filter((d) => !onlyTasks || onlyTasks.includes(d))
   .sort();
 
 if (tasks.length === 0) {
@@ -141,15 +141,17 @@ for (const id of tasks) {
   const ws = prepareWorkspace(taskDir, id);
 
   console.log(`→ ${id} …`);
+  // Tempo medido aqui: o duration_ms do JSON só cobre o último turno quando o orquestrador espera por subagentes.
+  const started = Date.now();
   const out = runClaude(prompt, ws);
+  const seconds = Math.round((Date.now() - started) / 1000);
   const check = runCheck(taskDir, ws);
   if (!check.pass) failures++;
   fs.appendFileSync(RESULTS, csvRow([
     new Date().toISOString(), version, label, model, id, check.pass ? 'sim' : 'nao',
-    out.total_cost_usd?.toFixed?.(4), out.duration_ms ? Math.round(out.duration_ms / 1000) : '',
-    out.num_turns, out.is_error ? 'sim' : '', ws,
+    out.total_cost_usd?.toFixed?.(4), seconds, out.num_turns, out.is_error ? 'sim' : '', ws,
   ]));
-  console.log(`  ${check.pass ? 'PASSOU' : 'FALHOU'} · $${out.total_cost_usd?.toFixed?.(2) ?? '?'} · ${out.duration_ms ? Math.round(out.duration_ms / 1000) + 's' : '?'}`);
+  console.log(`  ${check.pass ? 'PASSOU' : 'FALHOU'} · $${out.total_cost_usd?.toFixed?.(2) ?? '?'} · ${seconds}s`);
   if (!check.pass) {
     console.log(check.output.split('\n').slice(-15).map((l) => `    ${l}`).join('\n'));
     console.log(`  Resposta final do agente:\n${String(out.result || '').slice(-1500).split('\n').map((l) => `    ${l}`).join('\n')}`);

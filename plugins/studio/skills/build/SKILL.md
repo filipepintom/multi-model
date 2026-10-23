@@ -24,7 +24,7 @@ Flags:
 
 ## Fase 0 — Preparar
 
-1. Lê as lições acumuladas: `C:/Projects/multi-model/knowledge/lessons.md`. Aplica as que forem relevantes.
+1. Lê as lições acumuladas em `C:/Projects/multi-model/knowledge/lessons.md`: a parte **Geral** sempre, e da parte **Stack** só as secções das tecnologias deste projeto (num projeto novo, as da stack escolhida, depois da spec). Aplica as relevantes. Lições de outras stacks não condicionam este projeto.
 2. Lê o `CLAUDE.md` do projeto, se existir.
 3. Garante que o projeto é um repositório git (sem isso não há worktrees). Se não for, `git init`.
 4. Define o slug (kebab-case curto) e cria `docs/studio/<slug>/state.md` a partir de [templates/state.md](templates/state.md).

@@ -59,11 +59,30 @@ node evals/run.js --dry-run
 node evals/run.js --label baseline
 ```
 
-Cada tarefa vive em `evals/tasks/<id>/` e tem `task.md` (o pedido), `fixture/` (o código inicial, opcional) e `check.js` (o check escondido, que só é copiado depois do agente terminar). Os resultados (passou, custo, duração, turnos, versão do estúdio) vão para `evals/results.csv`.
+Cada tarefa vive em `evals/tasks/<id>/` e tem:
+
+| Ficheiro | Para quê |
+|---|---|
+| `task.md` | O pedido, escrito como um ticket ou uma ideia real |
+| `fixture/` | O código inicial (opcional) |
+| `check.js` | O check escondido, só copiado depois do agente terminar |
+| `reference/` | Uma solução correta, usada só para validar o check |
+| `flags` | Flags extra do `/studio:build` (opcional). Por omissão é `--skip-idea`; com o ficheiro vazio, a fase de ideia corre |
+
+O `--dry-run` valida cada check nos dois sentidos: tem de falhar no fixture e passar com a referência. O agente em teste só tem acesso ao plugin e a `knowledge/`, por isso `evals/` (checks e referências) fica-lhe inacessível.
+
+Os resultados (passou, custo, duração, turnos, modelo, versão do estúdio) vão para `evals/results.csv`.
 
 **Regra:** antes de adicionar uma skill, mudar um modelo ou mexer num prompt, corre as evals com `--label` antes e depois, e compara. Faz commit do estúdio antes, para que a versão fique registada.
 
-Há só 2 tarefas para começar. O objetivo é chegar a 10–15, tiradas de trabalho real: features, bugs, refactors e uma de UI.
+**A mistura importa.** As evals têm de ter a mesma distribuição daquilo que queres que o estúdio construa. Se forem todas da mesma stack, vais otimizar para essa stack sem dares por isso.
+
+| Complexidade | Tarefas |
+|---|---|
+| Pequena | 001 slugify, 002 desconto no carrinho, 003 404 em utilizadores, 004 validação de registo, 005 regressão do parser CSV |
+| Média | 006 autenticação e paginação, 007 CLI de tarefas, 008 ETL de CSV, 009 estados de UI de pesquisa, 010 migração de esquema, 011 integração de câmbios |
+| Grande | 012 app de notas CRUD, 013 refactor de error handling |
+| Greenfield (com fase de ideia) | 014 dividir despesas, 015 streaks de hábitos |
 
 ## Obsidian
 

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesquisa</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+    input { width: 100%; padding: .5rem; font-size: 1rem; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <h1>Pesquisa</h1>
+  <input id="q" type="search" placeholder="Pesquisar fruta…">
+  <pre id="out"></pre>
+  <script>
+    const input = document.getElementById('q');
+    const out = document.getElementById('out');
+    input.addEventListener('input', async () => {
+      const res = await fetch('/api/search?q=' + encodeURIComponent(input.value));
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+    });
+  </script>
+</body>
+</html>

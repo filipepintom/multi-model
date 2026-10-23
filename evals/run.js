@@ -5,7 +5,10 @@
 //   node evals/run.js --task 001-slugify    uma tarefa
 //   node evals/run.js --label "ponytail"    etiqueta a execução (para comparar variantes)
 //   node evals/run.js --model sonnet        modelo do orquestrador (por omissão: opus)
-//   node evals/run.js --dry-run             prepara workspaces e confirma que os checks falham sem trabalho feito
+//   node evals/run.js --dry-run             valida os checks: falham no fixture e passam com reference/ aplicada
+//
+// Cada tarefa: task.md (pedido), check.js (escondido), reference/ (solução de referência, só para validar),
+// fixture/ (código inicial, opcional), flags (flags extra do /studio:build, opcional; por omissão --skip-idea).
 
 const fs = require('fs');
 const os = require('os');
@@ -46,13 +49,14 @@ function git(args, cwd) {
   execSync(`git -c user.name=studio-eval -c user.email=eval@localhost ${args}`, { cwd, stdio: 'pipe' });
 }
 
-function prepareWorkspace(taskDir, id) {
+function prepareWorkspace(taskDir, id, withReference = false) {
   // Caminho longo real: nomes 8.3 (EXT_TI~1) são tratados como suspeitos e exigem aprovação manual.
   const tmp = fs.realpathSync.native(os.tmpdir());
   const ws = fs.realpathSync.native(fs.mkdtempSync(path.join(tmp, `studio-eval-${id}-`)));
   const fixture = path.join(taskDir, 'fixture');
   if (fs.existsSync(fixture)) fs.cpSync(fixture, ws, { recursive: true });
   else fs.writeFileSync(path.join(ws, 'README.md'), `# ${id}\n`);
+  if (withReference) fs.cpSync(path.join(taskDir, 'reference'), ws, { recursive: true });
   git('init -q -b main', ws);
   git('add -A', ws);
   git('commit -q -m "fixture"', ws);
@@ -61,7 +65,7 @@ function prepareWorkspace(taskDir, id) {
 
 function runCheck(taskDir, ws) {
   fs.copyFileSync(path.join(taskDir, 'check.js'), path.join(ws, '.eval-check.js'));
-  const r = spawnSync('node', ['.eval-check.js'], { cwd: ws, encoding: 'utf8' });
+  const r = spawnSync('node', ['.eval-check.js'], { cwd: ws, encoding: 'utf8', timeout: 3 * 60 * 1000 });
   return { pass: r.status === 0, output: `${r.stdout}${r.stderr}`.trim() };
 }
 
@@ -72,8 +76,8 @@ function runClaude(prompt, ws) {
     '--plugin-dir', PLUGIN_DIR,
     // auto: um classificador aprova ações seguras sem humano; os guardrails do plugin continuam ativos.
     '--permission-mode', 'auto',
-    // O estúdio lê lições e templates fora do workspace.
-    '--add-dir', ROOT,
+    // O estúdio lê lições e templates fora do workspace. Só estas pastas: evals/ (checks e referências) fica inacessível.
+    '--add-dir', PLUGIN_DIR, path.join(ROOT, 'knowledge'),
     '--allowedTools', ...ALLOWED_TOOLS,
   ];
   const r = spawnSync('claude', args, {
@@ -110,18 +114,31 @@ let failures = 0;
 
 for (const id of tasks) {
   const taskDir = path.join(TASKS_DIR, id);
-  const ws = prepareWorkspace(taskDir, id);
   const taskText = fs.readFileSync(path.join(taskDir, 'task.md'), 'utf8').trim();
-  const prompt = `/studio:build --auto --skip-idea\n\n${taskText}`;
+  const flagsFile = path.join(taskDir, 'flags');
+  const flags = fs.existsSync(flagsFile) ? fs.readFileSync(flagsFile, 'utf8').trim() : '--skip-idea';
+  const prompt = `/studio:build --auto ${flags}\n\n${taskText}`.replace(/ +\n/, '\n');
 
   if (dryRun) {
-    const check = runCheck(taskDir, ws);
-    const ok = !check.pass;
-    if (!ok) failures++;
-    console.log(`${ok ? 'OK ' : 'ERRO'} ${id}: o check ${check.pass ? 'PASSA sem trabalho feito (check inútil)' : 'falha antes do trabalho, como esperado'}`);
-    fs.rmSync(ws, { recursive: true, force: true });
+    const problems = [];
+    const before = prepareWorkspace(taskDir, id);
+    const beforeCheck = runCheck(taskDir, before);
+    if (beforeCheck.pass) problems.push('passa sem trabalho feito');
+    fs.rmSync(before, { recursive: true, force: true });
+    if (!fs.existsSync(path.join(taskDir, 'reference'))) {
+      problems.push('sem reference/');
+    } else {
+      const after = prepareWorkspace(taskDir, id, true);
+      const afterCheck = runCheck(taskDir, after);
+      if (!afterCheck.pass) problems.push(`falha com a referência:\n${afterCheck.output.split('\n').slice(-10).map((l) => `      ${l}`).join('\n')}`);
+      fs.rmSync(after, { recursive: true, force: true });
+    }
+    if (problems.length) failures++;
+    console.log(`${problems.length ? 'ERRO' : 'OK '} ${id}${problems.length ? ': ' + problems.join('; ') : ''}`);
     continue;
   }
+
+  const ws = prepareWorkspace(taskDir, id);
 
   console.log(`→ ${id} …`);
   const out = runClaude(prompt, ws);

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesquisa</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+    input { width: 100%; padding: .5rem; font-size: 1rem; box-sizing: border-box; }
+    #status { min-height: 1.5rem; margin: .5rem 0; color: #555; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Pesquisa</h1>
+  <label for="q">Fruta</label>
+  <input id="q" type="search" placeholder="Pesquisar fruta…">
+  <p id="status" aria-live="polite"></p>
+  <button type="button" data-action="retry" hidden>Tentar de novo</button>
+  <ul id="results"></ul>
+  <script src="search-state.js"></script>
+  <script>
+    const { initialState, reducer } = SearchState;
+    const input = document.getElementById('q');
+    const statusEl = document.getElementById('status');
+    const list = document.getElementById('results');
+    const retryBtn = document.querySelector('[data-action="retry"]');
+    let state = initialState;
+    let timer;
+
+    function render() {
+      const messages = {
+        idle: '', loading: 'A pesquisar…', empty: 'Sem resultados.',
+        error: 'Não foi possível pesquisar.', success: state.results.length + ' resultado(s).',
+      };
+      statusEl.textContent = messages[state.status];
+      retryBtn.hidden = state.status !== 'error';
+      list.replaceChildren(...(state.status === 'success' ? state.results : []).map((r) => {
+        const li = document.createElement('li');
+        li.textContent = r.name;
+        return li;
+      }));
+    }
+
+    function dispatch(action) {
+      state = reducer(state, action);
+      render();
+    }
+
+    async function search(query) {
+      try {
+        const res = await fetch('/api/search?q=' + encodeURIComponent(query));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        dispatch({ type: 'RESULTS_RECEIVED', query, results: data.results });
+      } catch (error) {
+        dispatch({ type: 'REQUEST_FAILED', query, error });
+      }
+    }
+
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      dispatch({ type: 'QUERY_CHANGED', query: input.value });
+      if (state.status === 'loading') timer = setTimeout(() => search(state.query), 300);
+    });
+
+    retryBtn.addEventListener('click', () => {
+      dispatch({ type: 'RETRY' });
+      search(state.query);
+    });
+    render();
+  </script>
+</body>
+</html>

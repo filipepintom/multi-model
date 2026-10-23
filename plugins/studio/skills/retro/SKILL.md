@@ -37,7 +37,10 @@ Lê, em `docs/studio/<slug>/`: `state.md` (escaladas), `plan.md` (tentativas por
 Para cada lição, decide onde pertence:
 
 - **Específica deste projeto** (convenções, armadilhas da codebase) → acrescenta ao `CLAUDE.md` do projeto.
-- **Geral, útil noutros projetos** → acrescenta a `C:/Projects/multi-model/knowledge/lessons.md`, na secção certa.
+- **Específica de uma tecnologia** (só vale em Node, Python, React, MuleSoft…) → `C:/Projects/multi-model/knowledge/lessons.md`, na secção `## Stack: <tecnologia>` (cria-a se não existir).
+- **Geral, vale para qualquer stack** (processo, spec, routing, verificação) → mesmo ficheiro, na parte **Geral**, na subsecção certa.
+
+Na dúvida entre geral e stack, é stack: uma lição de stack a mais custa pouco; uma regra de Python a condicionar um build em React custa caro.
 
 Regras:
 - No máximo 3 lições novas por retro. Prefere as que teriam evitado uma escalada.

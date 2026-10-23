@@ -1,0 +1,13 @@
+name,email,country,amount
+  Maria Santos ,  MARIA.SANTOS@Example.com ,PT, 120.50
+José Almeida,jose.almeida@example.pt,PT,75
+Carlos Dias,carlos@example.com,ES,abc
+Ana Pereira,ana.pereira@example.com,,30.10
+Maria S.,maria.santos@example.com,FR,999
+Rui Costa,rui.costa@example,PT,10
+"Lopes, Teresa",teresa.lopes@example.com,  ES ,0.20
+Pedro Nunes,pedro@example.com,ES,
+Sofia Lima,SOFIA@EXAMPLE.COM,FR,12.5
+Tiago Reis,tiago.reis@example.com,PT,0.10
+Joana Matos,joana.matos@example.com,   ,45.75
+Sofia L.,sofia@example.com,FR,50

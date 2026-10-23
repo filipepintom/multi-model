@@ -1,0 +1,55 @@
+const { test, before, after } = require('node:test');
+const assert = require('node:assert');
+const { spawn } = require('node:child_process');
+const net = require('node:net');
+
+let child;
+let base;
+
+function freePort() {
+  return new Promise((resolve) => {
+    const s = net.createServer().listen(0, () => {
+      const { port } = s.address();
+      s.close(() => resolve(port));
+    });
+  });
+}
+
+before(async () => {
+  const port = await freePort();
+  base = `http://127.0.0.1:${port}`;
+  child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
+  for (let i = 0; i < 50; i++) {
+    try {
+      await fetch(`${base}/users/1`);
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  throw new Error('servidor não arrancou');
+});
+
+after(() => child && child.kill());
+
+test('devolve um utilizador existente', async () => {
+  const res = await fetch(`${base}/users/1`);
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual((await res.json()).name, 'Ana Silva');
+});
+
+test('id inexistente devolve 404 com JSON', async () => {
+  const res = await fetch(`${base}/users/999`);
+  assert.strictEqual(res.status, 404);
+  assert.ok((await res.json()).error);
+});
+
+test('id inválido devolve 400 e o servidor continua vivo', async () => {
+  for (const id of ['abc', '1x', '1.5']) {
+    const res = await fetch(`${base}/users/${id}`);
+    assert.strictEqual(res.status, 400);
+    assert.ok((await res.json()).error);
+  }
+  const res = await fetch(`${base}/users/2`);
+  assert.strictEqual(res.status, 200);
+});

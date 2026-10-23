@@ -1,0 +1,1 @@
+Os clientes queixam-se de que o total do carrinho fica errado quando há um desconto percentual. Corrige o bug em `cart.js` e acrescenta um teste que o teria apanhado. Não alteres a assinatura de `total(items, discountPct)`.

@@ -1,7 +1,7 @@
 ---
 name: build
-description: Pipeline completo do estúdio — ideia, spec, plano, implementação multi-modelo, verificação, review e entrega, com dois gates humanos. Usar quando o utilizador quer construir uma ideia, produto, plataforma ou feature de ponta a ponta.
-argument-hint: "<o que construir>" [--auto] [--skip-idea]
+description: Pipeline do estúdio — ideia, spec, plano, implementação multi-modelo, verificação, review e entrega, com dois gates humanos e um modo rápido para tarefas pequenas. Usar quando o utilizador quer construir uma ideia, produto, plataforma ou feature de ponta a ponta.
+argument-hint: "<o que construir>" [--auto] [--skip-idea] [--fast | --full]
 disable-model-invocation: true
 ---
 
@@ -14,6 +14,7 @@ Tu és o **orquestrador**. Decides, decompões, distribuis e integras. **Não es
 Flags:
 - `--auto`: sem gates humanos (só para evals). Aprova a spec sem perguntar e, na entrega, faz merge local de `studio/<slug>` na branch base.
 - `--skip-idea`: salta a fase 1 (ideia já validada, ou feature pequena numa codebase existente).
+- `--fast` / `--full`: força o modo rápido ou o completo, sem triagem.
 
 ## Princípios
 
@@ -26,9 +27,24 @@ Flags:
 
 1. Lê as lições acumuladas em `C:/Projects/multi-model/knowledge/lessons.md`: a parte **Geral** sempre, e da parte **Stack** só as secções das tecnologias deste projeto (num projeto novo, as da stack escolhida, depois da spec). Aplica as relevantes. Lições de outras stacks não condicionam este projeto.
 2. Lê o `CLAUDE.md` do projeto, se existir.
-3. Garante que o projeto é um repositório git (sem isso não há worktrees). Se não for, `git init`.
+3. Garante que o projeto é um repositório git (sem isso não há worktrees). Se não for, `git init`. Garante que `.claude/worktrees/` está no `.gitignore` do projeto: os worktrees dos implementers nunca entram em commits.
 4. Define o slug (kebab-case curto) e cria `docs/studio/<slug>/state.md` a partir de [templates/state.md](templates/state.md).
 5. Descobre o comando de verificação (testes + lint + type-check) e grava-o em `.studio/verify` numa linha. Se o projeto ainda não tem nada, o comando entra no plano como primeira tarefa.
+6. **Triagem** (salvo `--fast`/`--full`): escolhe o modo e regista-o em `state.md` com o motivo numa linha.
+   - **Rápido** se tudo isto for verdade: alteração ou módulo pequeno (até ~3 ficheiros de código, mais testes); sem dependências novas; sem autenticação, segurança, dados persistentes, migrações ou concorrência; critérios de aceitação claros a partir do pedido; nada a decidir sobre o produto.
+   - **Completo** em todos os outros casos, e sempre que estiveres em dúvida. Uma ideia nova (sem `--skip-idea`) é sempre completo.
+   - Modo rápido → segue a secção **Modo rápido** e salta as fases 1 a 5.
+
+## Modo rápido
+
+Para tarefas pequenas, o custo fixo do critic e de uma review em Opus pesa mais do que o próprio trabalho. O modo rápido mantém os gates objetivos e corta a cerimónia.
+
+1. **Spec curta:** escreve só `spec.md` com objetivo, critérios de aceitação testáveis e a tarefa única (tier `haiku` ou `sonnet`). Não há `plan.md`, critic nem explorer, a não ser que precises de localizar código. **Gate 1** (exceto `--auto`): mostra só os critérios e pede confirmação.
+2. **Implementação:** cria a branch `studio/<slug>` e lança um `studio:implementer` com `model` igual ao tier, **sem worktree** (é uma tarefa só).
+3. **Verificação:** corre `.studio/verify`. Vermelho → uma nova tentativa com o erro exato.
+4. **Review:** lança `studio:reviewer` com `model: "sonnet"`. Grava o veredicto em `review.md`.
+5. **Escalada para o modo completo**, a partir da fase 3, se acontecer alguma destas: o implementer bloqueia duas vezes, a review tem um bloqueante, ou a tarefa afinal não cabe nos critérios da triagem. Regista a escalada em `state.md`: é uma lição sobre a triagem.
+6. Segue para a fase 6 (entrega) e a fase 7 (retro) como no modo completo.
 
 ## Fase 1 — Ideia (salta com `--skip-idea`)
 

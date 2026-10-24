@@ -2,6 +2,7 @@
 slug: <slug>
 pedido: "<pedido original>"
 fase: 0-preparar
+modo: <rápido | completo> — <motivo da triagem>
 branch: studio/<slug>
 base: <branch base>
 iniciado: <YYYY-MM-DD>

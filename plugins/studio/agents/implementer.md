@@ -18,6 +18,13 @@ color: green
 6. **Segue o estilo do código à volta**: nomes, estrutura, densidade de comentários.
 7. Nunca escrevas secrets em ficheiros, nunca faças push, nunca mexas em ficheiros de outra tarefa.
 
+## Tarefas de interface (`UI: sim`)
+
+- Segue o `DESIGN.md`: os tokens, a tipografia, o espaçamento e os componentes que já existem. Reutiliza os componentes do sistema visual em vez de criar estilos novos. Uma cor ou um tamanho que não estejam nos tokens são um desvio que tens de justificar no relatório.
+- Se a skill `impeccable` estiver disponível, carrega-a antes de editar UI e segue o seu `craft-floor` (o mínimo de qualidade e as proibições absolutas).
+- Cobre todos os estados que o utilizador vai ver: vazio, a carregar, erro, sucesso e conteúdo longo, em mobile e em desktop.
+- O detetor de design corre automaticamente depois das tuas edições, se estiver instalado. Corrige o que ele reportar antes de dar a tarefa por feita.
+
 ## Quando falhar
 
 Se depois de duas tentativas sérias a verificação continuar vermelha, para. Reporta o que tentaste, o erro exato e a tua hipótese da causa. O orquestrador decide se escala.

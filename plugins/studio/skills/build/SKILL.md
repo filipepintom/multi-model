@@ -42,7 +42,7 @@ Para tarefas pequenas, o custo fixo do critic e de uma review em Opus pesa mais 
 1. **Spec curta:** escreve só `spec.md` com objetivo, critérios de aceitação testáveis e a tarefa única (tier `haiku` ou `sonnet`). Não há `plan.md`, critic nem explorer, a não ser que precises de localizar código. **Gate 1** (exceto `--auto`): mostra só os critérios e pede confirmação.
 2. **Implementação:** cria a branch `studio/<slug>` e lança um `studio:implementer` com `model` igual ao tier, **sem worktree** (é uma tarefa só).
 3. **Verificação:** corre `.studio/verify`. Vermelho → uma nova tentativa com o erro exato.
-4. **Review:** lança `studio:reviewer` com `model: "sonnet"`. Grava o veredicto em `review.md`.
+4. **Review:** lança `studio:reviewer` com `model: "sonnet"`. Grava o veredicto em `review.md`. Se a tarefa toca em UI, o implementer segue o `DESIGN.md` existente e a review inclui o gate de design.
 5. **Escalada para o modo completo**, a partir da fase 3, se acontecer alguma destas: o implementer bloqueia duas vezes, a review tem um bloqueante, ou a tarefa afinal não cabe nos critérios da triagem. Regista a escalada em `state.md`: é uma lição sobre a triagem.
 6. Segue para a fase 6 (entrega) e a fase 7 (retro) como no modo completo.
 
@@ -56,8 +56,17 @@ Lança `studio:critic` com o pedido e o contexto que tens. Grava o resultado em 
 
 1. Se há código existente, lança `studio:explorer` (um ou mais em paralelo, com perguntas concretas) para perceber a arquitetura relevante. Não leias tu os ficheiros.
 2. Escreve `spec.md` a partir de [templates/spec.md](templates/spec.md). Critérios de aceitação **testáveis**, âmbito do MVP explícito, o que fica de fora explícito.
-3. Lança `studio:critic` em modo spec sobre `spec.md`. Corrige o que for válido.
-4. **Gate 1** (exceto `--auto`): apresenta ao utilizador um resumo da spec (objetivo, âmbito, fora de âmbito, critérios, stack, comando de verificação, riscos) e pede aprovação com AskUserQuestion. Não avances sem aprovação. Alterações pedidas → atualiza a spec e volta a perguntar.
+3. **Direção de design** (só se o projeto tem interface). Sem direção, os implementers produzem a interface por omissão, que é genérica. Segue a secção **Design** abaixo antes do gate 1.
+4. Lança `studio:critic` em modo spec sobre `spec.md`. Corrige o que for válido.
+5. **Gate 1** (exceto `--auto`): apresenta ao utilizador um resumo da spec (objetivo, âmbito, fora de âmbito, critérios, stack, comando de verificação, riscos e, se houver interface, a direção de design) e pede aprovação com AskUserQuestion. Não avances sem aprovação. Alterações pedidas → atualiza a spec e volta a perguntar.
+
+### Design (projetos com interface)
+
+O gosto do utilizador entra **aqui**, no gate 1, e não depois de a interface estar feita.
+
+- **Se a skill `impeccable` estiver disponível**, usa-a: o fluxo `init` escreve o `PRODUCT.md` (quem usa, em que situação, para fazer o quê), e o fluxo de trabalho novo (`shape`/new-work) escolhe o mundo visual e escreve o `DESIGN.md`, com tipografia, cor, espaçamento, componentes e tokens. As perguntas que ela faz ao utilizador fazem parte da conversa do gate 1. Com `--auto`, ela infere a partir do pedido e marca o que inferiu.
+- **Sem a skill**, preenche tu a secção "Direção de design" da spec (modo, contexto de uso, tom, referências e anti-referências, densidade, restrições) e escreve um `DESIGN.md` mínimo com os tokens.
+- O resumo do gate 1 mostra a direção em 3 a 5 linhas: o modo, o tom, a tipografia e a cor de base, e uma referência.
 
 ## Fase 3 — Plano
 
@@ -73,11 +82,12 @@ Regras do plano:
 - Tarefas pequenas: idealmente < 300 linhas de diff cada.
 - Duas tarefas só correm em paralelo se não tocam nos mesmos ficheiros e nenhuma depende da outra.
 - Mais de 15 tarefas → divide em marcos; cada marco é um ciclo completo implementação → review → entrega.
+- **Interface:** marca as tarefas de UI com `UI: sim`. Num projeto novo com interface, a primeira tarefa de UI é o **sistema visual**: os tokens, a tipografia, o layout base e os componentes base a partir do `DESIGN.md`, no tier `opus`. Todas as outras tarefas de UI dependem dela e reutilizam os seus componentes, em vez de cada uma inventar o seu estilo.
 
 ## Fase 4 — Implementação
 
 1. Cria a branch `studio/<slug>` a partir da branch atual.
-2. Para cada grupo de tarefas independentes, lança um `studio:implementer` por tarefa **na mesma mensagem**, com `isolation: "worktree"` e `model` igual ao tier da tarefa. O prompt leva: o texto da tarefa do plano, o caminho da spec, e o comando de verificação. Tarefas dependentes correm depois das suas dependências.
+2. Para cada grupo de tarefas independentes, lança um `studio:implementer` por tarefa **na mesma mensagem**, com `isolation: "worktree"` e `model` igual ao tier da tarefa. O prompt leva: o texto da tarefa do plano, o caminho da spec, e o comando de verificação. Nas tarefas `UI: sim`, leva também os caminhos do `DESIGN.md` e do `PRODUCT.md`. Tarefas dependentes correm depois das suas dependências.
 3. Lê o relatório de cada implementer. `feito` → confirma tu a verificação na branch dele e integra-a em `studio/<slug>`. **Depois de integrar, remove o worktree e a branch dele** (`git worktree remove --force <caminho>` e `git branch -D <branch>`). Cada worktree pode ter o seu próprio `node_modules` ou venv, e deixá-los acumular enche o disco. `bloqueado` → aplica as **condições de paragem**.
 4. Marca o progresso em `plan.md` e `state.md` à medida que cada tarefa fecha.
 
@@ -91,8 +101,9 @@ Regras do plano:
 
 1. Corre `.studio/verify` em `studio/<slug>`. Vermelho → volta à fase 4 com a falha como nova tarefa.
 2. Lança `studio:reviewer` com: caminho da spec, caminho do plano, e o diff (`git diff <base>...studio/<slug>`). Grava o veredicto em `review.md`.
-3. `ALTERAÇÕES NECESSÁRIAS` ou `REJEITADO` → cada bloqueante e importante vira uma tarefa de correção (fase 4) e depois nova review. **No máximo 2 rondas de review**; à terceira, escala para o utilizador.
-4. Os menores ficam registados em `delivery.md`, não bloqueiam.
+3. **Interface:** se o diff toca em UI, a review inclui o **gate de design** (ver o `studio:reviewer`): o detetor do Impeccable corre sobre a app a correr, em desktop e em mobile, e os findings dele entram no veredicto. Se existir o agente `impeccable-finish-reviewer`, lança-o em paralelo com o `studio:reviewer`, com o `DESIGN.md` como contrato, e junta os findings materiais dele ao `review.md`.
+4. `ALTERAÇÕES NECESSÁRIAS` ou `REJEITADO` → cada bloqueante e importante vira uma tarefa de correção (fase 4) e depois nova review. **No máximo 2 rondas de review**; à terceira, escala para o utilizador.
+5. Os menores ficam registados em `delivery.md`, não bloqueiam.
 
 ## Fase 6 — Entrega
 

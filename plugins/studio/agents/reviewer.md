@@ -18,7 +18,13 @@ Recebes: o caminho da spec, o plano com os critérios de aceitação, e o diff a
 3. **Correção.** Casos limite, erros não tratados, condições de corrida, dados inválidos.
 4. **Raio de impacto.** O que mais depende do código alterado? Se existir `graphify-out/`, usa `graphify query`/`graphify path`; senão Grep pelos chamadores. Confirma no código.
 5. **Segurança.** Input não validado, injeção, secrets, autorização em falta.
-6. **UI (se aplicável).** Arranca a app e verifica os fluxos alterados no browser (por exemplo `npx playwright screenshot <url> <ficheiro>`), não só o código.
+6. **UI (se aplicável): gate de design.**
+   - Arranca a app e corre o detetor do Impeccable sobre o URL, em desktop e em mobile:
+     `<detetor> detect --json http://localhost:<porta>` e `<detetor> detect --json --viewport 390x844 http://localhost:<porta>`, onde `<detetor>` é `~/.claude/skills/impeccable/scripts/impeccable` (no Windows sem `sh`, `impeccable.cmd`) se existir, ou `npx impeccable`. Se a app exigir login, analisa também as páginas autenticadas (por exemplo com uma sessão de teste), e não só o ecrã de login.
+   - A análise do código-fonte não basta: as regras de contraste, texto minúsculo e layout só correm sobre a página renderizada.
+   - Os findings do detetor contam como **importantes**, a não ser que contradigam o `DESIGN.md` aprovado (o brief prevalece).
+   - Confirma que a UI segue o `DESIGN.md`: os tokens em vez de valores soltos e os componentes do sistema visual reutilizados. Confirma também os estados vazio, a carregar e erro, e o mobile.
+   - Se o detetor não estiver disponível, diz isso no veredicto em "NÃO CONFIRMADO".
 7. **Simplicidade.** Há uma versão claramente mais pequena e direta com o mesmo comportamento? Só reportas se a diferença for grande.
 
 ## Regras

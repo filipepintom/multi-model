@@ -10,6 +10,13 @@ Ideia (critic) → Spec (**gate 1**) → Plano com tiers → Implementação par
 
 Tarefas pequenas e sem risco seguem o **modo rápido**: sem critic, sem plano separado e com a review em Sonnet. A triagem é feita na fase 0.
 
+Projetos com interface passam por uma etapa de **design** na spec. Com o Impeccable instalado, o `PRODUCT.md` e o `DESIGN.md` são criados antes do gate 1, onde aprovas a direção visual. Depois disso:
+- o sistema visual é a primeira tarefa de UI, em Opus;
+- os implementers seguem o `DESIGN.md`;
+- a review corre o detetor sobre a app a correr, em desktop e em mobile.
+
+O detetor apanha anti-padrões, não mede beleza. É a direção aprovada no gate 1 que faz a diferença estética.
+
 Para algo que já existe:
 
 ```
@@ -118,7 +125,7 @@ Lê cada skill antes de a instalar e fixa a versão. São código que corre com 
 | Ponytail (`DietrichGebert/ponytail`) | Menos over-building | implementer |
 | addyosmani/agent-skills | Adaptar práticas ao pipeline (não correr em paralelo) | build |
 | thermo-nuclear review (só a skill, sem o pstack) | Review estrutural em marcos | reviewer, ocasional |
-| Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; 62 regras determinísticas, sem LLM | implementer de frontend (skill), reviewer ou hook (detetor). **Desligar a telemetria.** Primeiro candidato de UI: entra se a app de finanças sair genérica |
+| Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; detetor determinístico sem LLM | **Integrado na 0.4.0**: direção de design na spec, sistema visual como primeira tarefa de UI, gate de design na review. Entrou porque a interface da app de finanças saiu esteticamente fraca. **Desligar a telemetria** (`impeccable telemetry off`) |
 | Emil Kowalski (`emil-design-eng`) | Motion e polish de UI | implementer de frontend. Só se o motion importar, e nunca com o Impeccable em simultâneo para a parte visual |
 | 21st.dev Magic MCP | Componentes React/Tailwind | implementer de frontend |
 | Humanizer (`blader/humanizer`) | Prosa que não soa a IA, sem mudar o conteúdo | **Já instalado.** Na entrega, para README, `delivery.md` e documentação para utilizadores. Nunca em specs nem planos: são contratos e a precisão vale mais do que o estilo |

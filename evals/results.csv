@@ -16,3 +16,8 @@
 "2026-10-23T23:12:52.974Z","a02431f","baseline","opus","013-error-handling-refactor","sim","3.2593","291","9","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-013-error-handling-refactor-KSDJbu"
 "2026-10-23T23:48:22.325Z","19b8191","baseline","opus","014-greenfield-expense-split","sim","3.2108","725","6","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-014-greenfield-expense-split-bBo39H"
 "2026-10-23T23:57:49.156Z","19b8191","baseline","opus","015-greenfield-habit-streaks","sim","2.1465","566","20","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-015-greenfield-habit-streaks-QnD89s"
+"2026-10-24T00:08:23.520Z","28355d9","fast-path","opus","001-slugify","sim","0.6310","152","8","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-001-slugify-ymI4jr"
+"2026-10-24T00:11:12.765Z","28355d9","fast-path","opus","002-cart-discount","sim","0.6198","167","11","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-002-cart-discount-MPb1BG"
+"2026-10-24T00:14:17.383Z","28355d9","fast-path","opus","003-users-404","sim","0.6467","181","9","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-003-users-404-TMxS9g"
+"2026-10-24T00:19:19.047Z","28355d9","fast-path","opus","004-signup-validation","sim","1.4476","298","11","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-004-signup-validation-AuHExz"
+"2026-10-24T00:22:43.983Z","28355d9","fast-path","opus","005-csv-line-regression","sim","0.8937","199","9","","C:\Users\ext_timestamp02\AppData\Local\Temp\studio-eval-005-csv-line-regression-lKpAfu"

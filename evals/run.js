@@ -8,7 +8,11 @@
 //   node evals/run.js --dry-run             valida os checks: falham no fixture e passam com reference/ aplicada
 //
 // Cada tarefa: task.md (pedido), check.js (escondido), reference/ (solução de referência, só para validar),
-// fixture/ (código inicial, opcional), flags (flags extra do /studio:build, opcional; por omissão --skip-idea).
+// fixture/ (código inicial, opcional), command (comando do estúdio, opcional; por omissão /studio:build),
+// flags (flags extra, opcional; por omissão --skip-idea no build e nada nos outros comandos).
+//
+// Os checks podem usar as bibliotecas de evals/lib via process.env.EVAL_LIB e reportar métricas com uma
+// linha `METRICS {...}` no stdout, que fica na coluna "metricas" do results.csv.
 
 const fs = require('fs');
 const os = require('os');
@@ -17,7 +21,9 @@ const { spawnSync, execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const TASKS_DIR = path.join(__dirname, 'tasks');
+const LIB_DIR = path.join(__dirname, 'lib');
 const RESULTS = path.join(__dirname, 'results.csv');
+const HEADER = ['data', 'versao_studio', 'label', 'modelo', 'tarefa', 'passou', 'custo_usd', 'duracao_s', 'turnos', 'erro', 'workspace', 'metricas'];
 const PLUGIN_DIR = path.join(ROOT, 'plugins', 'studio');
 
 const ALLOWED_TOOLS = [
@@ -65,8 +71,11 @@ function prepareWorkspace(taskDir, id, withReference = false) {
 
 function runCheck(taskDir, ws) {
   fs.copyFileSync(path.join(taskDir, 'check.js'), path.join(ws, '.eval-check.js'));
-  const r = spawnSync('node', ['.eval-check.js'], { cwd: ws, encoding: 'utf8', timeout: 3 * 60 * 1000 });
-  return { pass: r.status === 0, output: `${r.stdout}${r.stderr}`.trim() };
+  const r = spawnSync('node', ['.eval-check.js'], {
+    cwd: ws, encoding: 'utf8', timeout: 3 * 60 * 1000, env: { ...process.env, EVAL_LIB: LIB_DIR },
+  });
+  const metrics = /^METRICS (.+)$/m.exec(r.stdout || '')?.[1] || '';
+  return { pass: r.status === 0, output: `${r.stdout}${r.stderr}`.trim(), metrics };
 }
 
 function runClaude(prompt, ws) {
@@ -106,7 +115,13 @@ if (tasks.length === 0) {
 }
 
 if (!dryRun && !fs.existsSync(RESULTS)) {
-  fs.writeFileSync(RESULTS, csvRow(['data', 'versao_studio', 'label', 'modelo', 'tarefa', 'passou', 'custo_usd', 'duracao_s', 'turnos', 'erro', 'workspace']));
+  fs.writeFileSync(RESULTS, csvRow(HEADER));
+} else if (!dryRun) {
+  // Migra ficheiros criados antes da coluna "metricas".
+  const lines = fs.readFileSync(RESULTS, 'utf8').split(/\r?\n/).filter(Boolean);
+  if (!lines[0].includes('"metricas"')) {
+    fs.writeFileSync(RESULTS, lines.map((l) => `${l},"${l === lines[0] ? 'metricas' : ''}"`).join('\n') + '\n');
+  }
 }
 
 const version = studioVersion();
@@ -115,9 +130,10 @@ let failures = 0;
 for (const id of tasks) {
   const taskDir = path.join(TASKS_DIR, id);
   const taskText = fs.readFileSync(path.join(taskDir, 'task.md'), 'utf8').trim();
-  const flagsFile = path.join(taskDir, 'flags');
-  const flags = fs.existsSync(flagsFile) ? fs.readFileSync(flagsFile, 'utf8').trim() : '--skip-idea';
-  const prompt = `/studio:build --auto ${flags}\n\n${taskText}`.replace(/ +\n/, '\n');
+  const readOpt = (name) => (fs.existsSync(path.join(taskDir, name)) ? fs.readFileSync(path.join(taskDir, name), 'utf8').trim() : undefined);
+  const command = readOpt('command') || '/studio:build';
+  const flags = readOpt('flags') ?? (command === '/studio:build' ? '--skip-idea' : '');
+  const prompt = `${command} --auto ${flags}\n\n${taskText}`.replace(/ +\n/, '\n');
 
   if (dryRun) {
     const problems = [];
@@ -149,9 +165,9 @@ for (const id of tasks) {
   if (!check.pass) failures++;
   fs.appendFileSync(RESULTS, csvRow([
     new Date().toISOString(), version, label, model, id, check.pass ? 'sim' : 'nao',
-    out.total_cost_usd?.toFixed?.(4), seconds, out.num_turns, out.is_error ? 'sim' : '', ws,
+    out.total_cost_usd?.toFixed?.(4), seconds, out.num_turns, out.is_error ? 'sim' : '', ws, check.metrics,
   ]));
-  console.log(`  ${check.pass ? 'PASSOU' : 'FALHOU'} · $${out.total_cost_usd?.toFixed?.(2) ?? '?'} · ${seconds}s`);
+  console.log(`  ${check.pass ? 'PASSOU' : 'FALHOU'} · $${out.total_cost_usd?.toFixed?.(2) ?? '?'} · ${seconds}s${check.metrics ? ` · ${check.metrics}` : ''}`);
   if (!check.pass) {
     console.log(check.output.split('\n').slice(-15).map((l) => `    ${l}`).join('\n'));
     console.log(`  Resposta final do agente:\n${String(out.result || '').slice(-1500).split('\n').map((l) => `    ${l}`).join('\n')}`);

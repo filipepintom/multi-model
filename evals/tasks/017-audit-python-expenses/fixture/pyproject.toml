@@ -1,0 +1,13 @@
+[project]
+name = "expenses"
+version = "0.4.1"
+description = "Registo de despesas pessoais (CLI e relatório web local)"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+expenses = "expenses.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

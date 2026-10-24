@@ -1,0 +1,272 @@
+[
+  {
+    "id": "F1",
+    "lens": "security",
+    "title": "Restaurar um backup executa código arbitrário (pickle.load sobre ficheiro de terceiros)",
+    "severity": "critical",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/backup.py",
+    "line": 42,
+    "end_line": 45,
+    "related": [
+      {
+        "file": "expenses/backup.py",
+        "line": 50
+      },
+      {
+        "file": "expenses/cli.py",
+        "line": 142
+      }
+    ],
+    "evidence": "with opener(path, \"rb\") as fh:\n    payload = pickle.load(fh)",
+    "scenario": "Um colega envia despesas.bak criado com um objeto cujo __reduce__ devolve (os.system, ('touch /tmp/pwned',)). 'python -m expenses restore despesas.bak' chama describe_backup → _read → pickle.load antes até da pergunta de confirmação, e o comando corre com as permissões do utilizador.",
+    "impact": "Execução de código na máquina de quem restaura um backup recebido de outra pessoa; o README incentiva precisamente a troca de backups entre colegas.",
+    "fix": "Trocar o formato do backup para JSON (datas em ISO, valores como texto) ou para uma cópia do ficheiro SQLite; manter a leitura de pickle só atrás de uma flag explícita de migração.",
+    "effort": "M",
+    "mode": "completo",
+    "priority": 1,
+    "request": "Substituir o formato pickle dos backups (expenses/backup.py:42) por JSON, sem perder a capacidade de restaurar. Primeiro um teste que reproduz o problema e falha.",
+    "verifier_reason": "Reproduzido: um backup com __reduce__ criou o ficheiro marcador ao correr restore, antes da confirmação."
+  },
+  {
+    "id": "F2",
+    "lens": "security",
+    "title": "SQL injection na pesquisa (CLI search e GET /search)",
+    "severity": "high",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/db.py",
+    "line": 105,
+    "end_line": 108,
+    "related": [
+      {
+        "file": "expenses/web.py",
+        "line": 95
+      },
+      {
+        "file": "expenses/cli.py",
+        "line": 96
+      }
+    ],
+    "evidence": "f\"WHERE description LIKE '%{term}%' OR category LIKE '%{term}%' \"",
+    "scenario": "GET /search?q=zzz'%20UNION%20SELECT%201,'2026-01-01',sqlite_version(),0,'EUR','x',''%20-- devolve uma linha com a versão do SQLite; 'expenses search \"Pão d'Avó\"' rebenta com sqlite3.OperationalError (near \"Avó\": syntax error).",
+    "impact": "O termo do utilizador é interpolado diretamente na query: pesquisas legítimas com apóstrofo falham e o input controla a SQL executada (leitura de qualquer tabela via UNION).",
+    "fix": "Usar placeholders: \"... WHERE description LIKE ? OR category LIKE ?\" com params (f\"%{term}%\",) * 2, escapando % e _ com ESCAPE se for preciso.",
+    "effort": "S",
+    "mode": "completo",
+    "priority": 2,
+    "request": "Parametrizar a query de search_expenses em expenses/db.py:105. Primeiro um teste que reproduz o problema e falha (pesquisa com apóstrofo e com UNION).",
+    "verifier_reason": "Reproduzido com sqlite em memória: o apóstrofo dá OperationalError e o UNION devolve sqlite_version()."
+  },
+  {
+    "id": "F3",
+    "lens": "correctness",
+    "title": "Relatório mensal ignora as despesas do último dia do mês",
+    "severity": "high",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/reports.py",
+    "line": 67,
+    "end_line": 68,
+    "related": [
+      {
+        "file": "expenses/reports.py",
+        "line": 58
+      },
+      {
+        "file": "expenses/db.py",
+        "line": 70
+      }
+    ],
+    "evidence": "month_bounds devolve date(year, month, last_day) e a query usa \"date >= ? AND date < ?\" com esse valor",
+    "scenario": "Renda de 650 € registada a 2026-09-30: 'expenses report --month 2026-09' mostra só as outras despesas e o total vem 650 € abaixo; 'expenses list --month 2026-09' (que usa date <= ?) mostra a renda.",
+    "impact": "Todos os relatórios mensais (CLI e web) perdem o último dia do mês, em silêncio; o fim de mês concentra pagamentos como renda e cartão.",
+    "fix": "Usar date <= ? com o último dia (ou date < primeiro dia do mês seguinte) e reutilizar db.list_expenses para não haver duas definições do intervalo.",
+    "effort": "S",
+    "mode": "rápido",
+    "priority": 3,
+    "request": "Corrigir o intervalo do relatório mensal em expenses/reports.py:67 para incluir o último dia do mês. Primeiro um teste que reproduz o problema e falha.",
+    "verifier_reason": "Reproduzido: despesa a 30/09 aparece em list --month 2026-09 e falta em monthly_report(2026, 9)."
+  },
+  {
+    "id": "F4",
+    "lens": "correctness",
+    "title": "Lista mutável por omissão em collect_tags mistura as etiquetas de todas as linhas importadas",
+    "severity": "high",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/tags.py",
+    "line": 12,
+    "end_line": 21,
+    "related": [
+      {
+        "file": "expenses/importer.py",
+        "line": 83
+      },
+      {
+        "file": "expenses/cli.py",
+        "line": 40
+      }
+    ],
+    "evidence": "def collect_tags(text: str, tags=[]):\n    ...\n            tags.append(tag)\n    return tags",
+    "scenario": "Importar um CSV com as linhas A (tags 'trabalho'), B (sem tags) e C (tags 'casa'): as três despesas ficam com ['trabalho', 'casa'], porque a lista por omissão é criada uma vez e partilhada entre chamadas.",
+    "impact": "Etiquetas erradas gravadas na base de dados em cada importação; o efeito acumula-se em qualquer processo que chame collect_tags mais do que uma vez.",
+    "fix": "Usar tags=None e criar uma lista nova dentro da função (ou devolver sempre uma lista nova).",
+    "effort": "S",
+    "mode": "rápido",
+    "priority": 4,
+    "request": "Eliminar o argumento por omissão mutável de collect_tags em expenses/tags.py:12. Primeiro um teste que reproduz o problema e falha (import de CSV com etiquetas diferentes por linha).",
+    "verifier_reason": "Reproduzido: import_csv devolveu a mesma lista ['trabalho', 'casa'] nas três despesas."
+  },
+  {
+    "id": "F5",
+    "lens": "security",
+    "title": "Injeção de comandos no backup com --compress (shell=True com o caminho do utilizador)",
+    "severity": "high",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/backup.py",
+    "line": 29,
+    "related": [
+      {
+        "file": "expenses/cli.py",
+        "line": 136
+      }
+    ],
+    "evidence": "subprocess.run(f\"gzip -f {dest}\", shell=True, check=True)",
+    "scenario": "'expenses backup \"x.bak; touch /tmp/pwned\" --compress' corre touch; um caminho com espaços ('Os meus backups/despesas.bak') parte-se em dois argumentos e o gzip falha depois de o backup já estar escrito.",
+    "impact": "Qualquer metacaracter da shell no destino é executado; scripts que montem o nome do ficheiro a partir de dados externos ficam expostos a execução de comandos.",
+    "fix": "Comprimir com o módulo gzip da biblioteca padrão (já usado na leitura) ou, no mínimo, subprocess.run([\"gzip\", \"-f\", str(dest)], check=True).",
+    "effort": "S",
+    "mode": "completo",
+    "priority": 5,
+    "request": "Remover o shell=True da compressão do backup em expenses/backup.py:29. Primeiro um teste que reproduz o problema e falha.",
+    "verifier_reason": "Confirmado por leitura: o caminho é interpolado sem escape numa string passada à shell."
+  },
+  {
+    "id": "F6",
+    "lens": "correctness",
+    "title": "Prestações em float arredondadas por parcela: o total não bate com o valor original",
+    "severity": "medium",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/models.py",
+    "line": 57,
+    "related": [
+      {
+        "file": "expenses/cli.py",
+        "line": 43
+      }
+    ],
+    "evidence": "part = round(expense.amount / count, 2)  # cada prestação recebe o mesmo valor arredondado",
+    "scenario": "'expenses add 100 \"Portátil\" --installments 3' grava 3 × 33,33 = 99,99 €; 'add 899 ... --installments 3' grava 3 × 299,67 = 899,01 €. Os totais mensais ficam 1 cêntimo abaixo ou acima do que foi pago.",
+    "impact": "Dinheiro guardado como float e arredondado parcela a parcela: a soma das prestações diverge do valor da compra e os relatórios deixam de bater com o extrato.",
+    "fix": "Calcular em cêntimos inteiros (ou Decimal) e pôr o resto na última prestação, de modo que a soma seja exatamente o valor original.",
+    "effort": "S",
+    "mode": "rápido",
+    "priority": 6,
+    "request": "Fazer com que split_installments (expenses/models.py:57) reparta o valor sem perder nem criar cêntimos. Primeiro um teste que reproduz o problema e falha.",
+    "verifier_reason": "Reproduzido: split_installments(100, 3) → [33.33, 33.33, 33.33], soma 99.99."
+  },
+  {
+    "id": "F7",
+    "lens": "maintainability",
+    "title": "Conversão de moeda duplicada com arredondamentos diferentes: relatório e CSV divergem",
+    "severity": "medium",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/export.py",
+    "line": 18,
+    "end_line": 23,
+    "related": [
+      {
+        "file": "expenses/currency.py",
+        "line": 25,
+        "end_line": 27
+      },
+      {
+        "file": "expenses/reports.py",
+        "line": 73
+      }
+    ],
+    "evidence": "export._to_base: round(amount * rates[currency], 2) em float; currency.convert: Decimal(str(amount)) * rate, quantize(CENT, ROUND_HALF_UP)",
+    "scenario": "Despesa de 12,50 GBP com a taxa 1.17: o relatório mostra 14,63 EUR e a coluna valor_base do CSV mostra 14.62 (2,50 GBP: 2,93 vs 2,92). O TOTAL do export não coincide com o total do relatório do mesmo mês.",
+    "impact": "Duas implementações da mesma regra de negócio já divergiram; quem compara o relatório com a folha de cálculo encontra diferenças de cêntimos sem explicação, e qualquer correção futura tem de ser feita em dois sítios.",
+    "fix": "Apagar _to_base e usar currency.convert no export (somando Decimal), com um teste que compara o total do relatório com o TOTAL do CSV.",
+    "effort": "S",
+    "mode": "rápido",
+    "priority": 7,
+    "request": "Unificar a conversão de moeda do export (expenses/export.py:18) com currency.convert. Primeiro um teste que reproduz o problema e falha.",
+    "verifier_reason": "Reproduzido: convert(12.5, 'GBP') = 14.63 e _to_base(12.5, 'GBP') = 14.62."
+  },
+  {
+    "id": "F8",
+    "lens": "correctness",
+    "title": "Gravação da configuração não atómica e com as exceções engolidas",
+    "severity": "medium",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "expenses/config.py",
+    "line": 39,
+    "end_line": 42,
+    "related": [
+      {
+        "file": "expenses/config.py",
+        "line": 31
+      },
+      {
+        "file": "expenses/cli.py",
+        "line": 165
+      }
+    ],
+    "evidence": "with open(path, \"w\", encoding=\"utf-8\") as fh:\n    json.dump(cfg, fh, indent=2, sort_keys=True)\nexcept Exception:\n    pass",
+    "scenario": "Disco cheio, permissões erradas ou Ctrl+C durante 'expenses config set rates.USD 0.93': o open('w') já truncou config.json, o json.dump fica a meio (ex.: termina em '\"USD\": ') e o comando escreve 'Configuração guardada.'. A partir daí todos os comandos falham em load_config com 'erro: Expecting value'.",
+    "impact": "Perda silenciosa das taxas de câmbio configuradas e ferramenta inutilizável até alguém apagar ou reparar o ficheiro à mão; o utilizador é informado de sucesso quando a gravação falhou.",
+    "fix": "Escrever num ficheiro temporário na mesma pasta e fazer os.replace; deixar a exceção propagar (ou reportá-la) em vez de except Exception: pass.",
+    "effort": "S",
+    "mode": "completo",
+    "priority": 8,
+    "request": "Tornar save_config (expenses/config.py:38) atómico e deixar de esconder erros. Primeiro um teste que reproduz o problema e falha.",
+    "verifier_reason": "Reproduzido: com um valor não serializável a meio, config.json ficou truncado e save_config não levantou erro."
+  },
+  {
+    "id": "F9",
+    "lens": "security",
+    "title": "SQL construída com f-string em list_expenses",
+    "severity": "high",
+    "confidence": "low",
+    "verdict": "refuted",
+    "file": "expenses/db.py",
+    "line": 74,
+    "end_line": 77,
+    "related": [],
+    "evidence": "clauses.append(f\"category IN ({marks})\") / conn.execute(f\"SELECT * FROM expenses{where} ...\", params)",
+    "scenario": "Suspeita de injeção através de --category.",
+    "impact": "Nenhum: a f-string só junta placeholders '?' e nomes de colunas fixos; os valores vão em params.",
+    "fix": "Nada a corrigir.",
+    "effort": "S",
+    "mode": "rápido",
+    "priority": null,
+    "verifier_reason": "Refutado: 'expenses list -c \"x' OR 1=1 --\"' devolve 0 linhas; o valor é ligado como parâmetro."
+  },
+  {
+    "id": "F10",
+    "lens": "security",
+    "title": "Uso de MD5 no servidor web",
+    "severity": "low",
+    "confidence": "low",
+    "verdict": "refuted",
+    "file": "expenses/web.py",
+    "line": 59,
+    "related": [],
+    "evidence": "hashlib.md5(body, usedforsecurity=False).hexdigest()",
+    "scenario": "Suspeita de hash fraco.",
+    "impact": "Nenhum: o MD5 só gera o ETag do corpo da resposta, não protege nada, e está marcado usedforsecurity=False.",
+    "fix": "Nada a corrigir.",
+    "effort": "S",
+    "mode": "rápido",
+    "priority": null,
+    "verifier_reason": "Refutado: não há uso de segurança; uma colisão só faria o browser reutilizar a cache."
+  }
+]

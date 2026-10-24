@@ -8,12 +8,23 @@ Um plugin do Claude Code (`studio`) que leva uma ideia até à entrega: o Opus o
 
 Ideia (critic) → Spec (**gate 1**) → Plano com tiers → Implementação paralela em worktrees → Verificação + review independente → Entrega (**gate 2**) → Retro
 
+Tarefas pequenas e sem risco seguem o **modo rápido**: sem critic, sem plano separado e com a review em Sonnet. A triagem é feita na fase 0.
+
+Para algo que já existe:
+
+```
+/studio:audit "módulo de pagamentos"
+```
+
+Âmbito → Mapa → Baseline objetivo → Lentes em paralelo (correção, segurança, manutenibilidade) → Verificação adversarial → Backlog com no máximo 15 itens (**gate**) → cada item escolhido segue para o `/studio:build`, a começar por um teste que reproduz o problema. A auditoria nunca altera código.
+
 ## Estrutura
 
 | Caminho | O que é |
 |---|---|
-| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus) |
+| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet na manutenibilidade), `verifier` (Sonnet; Opus para critical/high) |
 | `plugins/studio/skills/build/` | O pipeline `/studio:build` e os templates (state, spec, plan) |
+| `plugins/studio/skills/audit/` | `/studio:audit`, as rubricas das lentes (`lenses/`) e os templates. Uma lente nova é só um ficheiro novo em `lenses/` |
 | `plugins/studio/skills/retro/` | `/studio:retro`: transforma falhas em lições |
 | `plugins/studio/hooks/` | Guardrails (ver abaixo) |
 | `plugins/studio/.mcp.json` | Context7 (documentação atualizada de bibliotecas) |
@@ -83,6 +94,15 @@ Os resultados (passou, custo, duração, turnos, modelo, versão do estúdio) v�
 | Média | 006 autenticação e paginação, 007 CLI de tarefas, 008 ETL de CSV, 009 estados de UI de pesquisa, 010 migração de esquema, 011 integração de câmbios |
 | Grande | 012 app de notas CRUD, 013 refactor de error handling |
 | Greenfield (com fase de ideia) | 014 dividir despesas, 015 streaks de hábitos |
+| Auditoria (`command` = `/studio:audit`) | 016 API de loja em Node, 017 app de despesas em Python |
+
+As evals de auditoria plantam 8 problemas reais (alguns óbvios, outros só visíveis atravessando ficheiros) e 4 **decoys**: código que parece suspeito mas está correto. A biblioteca [`evals/lib/audit-check.js`](evals/lib/audit-check.js) mede:
+- o **recall**, ou quantos dos problemas plantados foram reportados (o mínimo para passar é 75%);
+- os **falsos positivos em decoys** (no máximo 1);
+- os **outros** findings, que não batem com nada conhecido e são registados mas não penalizados;
+- que a auditoria **não alterou código**.
+
+Estas métricas ficam na coluna `metricas` do `results.csv`. Ao contrário do passou/falhou dos builds, não saturam facilmente.
 
 ## Obsidian
 

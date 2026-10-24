@@ -97,8 +97,22 @@ Lê cada skill antes de a instalar e fixa a versão. São código que corre com 
 | Ponytail (`DietrichGebert/ponytail`) | Menos over-building | implementer |
 | addyosmani/agent-skills | Adaptar práticas ao pipeline (não correr em paralelo) | build |
 | thermo-nuclear review (só a skill, sem o pstack) | Review estrutural em marcos | reviewer, ocasional |
-| Emil Kowalski (`emil-design-eng`) | Motion e polish de UI | implementer de frontend |
+| Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; 62 regras determinísticas, sem LLM | implementer de frontend (skill), reviewer ou hook (detetor). **Desligar a telemetria.** Primeiro candidato de UI: entra se a app de finanças sair genérica |
+| Emil Kowalski (`emil-design-eng`) | Motion e polish de UI | implementer de frontend. Só se o motion importar, e nunca com o Impeccable em simultâneo para a parte visual |
 | 21st.dev Magic MCP | Componentes React/Tailwind | implementer de frontend |
+| Humanizer (`blader/humanizer`) | Prosa que não soa a IA, sem mudar o conteúdo | **Já instalado.** Na entrega, para README, `delivery.md` e documentação para utilizadores. Nunca em specs nem planos: são contratos e a precisão vale mais do que o estilo |
 | Strix | Pentest dinâmico contra staging | CI / entrega |
 | graphify | Mapa de codebases grandes | explorer, reviewer (já suportado se existir `graphify-out/`) |
 | Playwright / Chrome DevTools MCP | Verificação de UI no browser | reviewer |
+
+### Avaliadas e rejeitadas
+
+Ficam aqui para não voltarem a ser avaliadas do zero. Só se reabrem se o motivo deixar de valer.
+
+| Ferramenta | Motivo |
+|---|---|
+| pstack (plugin completo) | O router dele compete com o orquestrador. Só se aproveita a skill thermo-nuclear |
+| Hallmark (`Nutlope/hallmark`) | Duplica o Impeccable; duas skills de design em simultâneo dão instruções contraditórias |
+| Scrapling (`D4Vinci/Scrapling`) | Sem falha de pesquisa que o justifique: o WebFetch, o Chrome DevTools MCP e o Context7 cobrem os casos. O ponto forte é contornar anti-bot (stealth, Cloudflare), um risco de termos de serviço. Reabrir só se as retros mostrarem falhas de leitura de páginas, e mesmo assim sem o modo stealth |
+| Agent-Reach (`Panniantong/Agent-Reach`) | Copia cookies das sessões do Chrome para aceder a sites com login (risco de conta e de termos de serviço) e instala-se com instruções remotas executadas pelo agente (supply chain). Não usar num computador da empresa |
+| Harness² (`google-research/harness2`) | Só Linux, Vertex AI e executores OpenCode/Codex. A ideia (melhorar o harness com evidência) já está nas evals; um `/studio:improve` só faz sentido com dezenas de builds reais e evals não saturadas |

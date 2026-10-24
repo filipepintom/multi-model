@@ -29,7 +29,7 @@ Flags:
 2. Lê o `CLAUDE.md` do projeto, se existir.
 3. Garante que o projeto é um repositório git (sem isso não há worktrees). Se não for, `git init`. Garante que `.claude/worktrees/` está no `.gitignore` do projeto: os worktrees dos implementers nunca entram em commits.
 4. Define o slug (kebab-case curto) e cria `docs/studio/<slug>/state.md` a partir de [templates/state.md](templates/state.md).
-5. Descobre o comando de verificação (testes + lint + type-check) e grava-o em `.studio/verify` numa linha. Se o projeto ainda não tem nada, o comando entra no plano como primeira tarefa.
+5. Descobre o comando de verificação (testes + lint + type-check) e grava-o em `.studio/verify` numa linha. Se o projeto ainda não tem nada, **não cries ainda o `.studio/verify`**: o guard corre-o antes de cada commit e bloqueia tudo enquanto o comando não existir. O comando entra no plano como parte da primeira tarefa (o esqueleto), que só então cria o ficheiro.
 6. **Triagem** (salvo `--fast`/`--full`): escolhe o modo e regista-o em `state.md` com o motivo numa linha.
    - **Rápido** se tudo isto for verdade: alteração ou módulo pequeno (até ~3 ficheiros de código, mais testes); sem dependências novas; sem autenticação, segurança, dados persistentes, migrações ou concorrência; critérios de aceitação claros a partir do pedido; nada a decidir sobre o produto.
    - **Completo** em todos os outros casos, e sempre que estiveres em dúvida. Uma ideia nova (sem `--skip-idea`) é sempre completo.
@@ -78,7 +78,7 @@ Regras do plano:
 
 1. Cria a branch `studio/<slug>` a partir da branch atual.
 2. Para cada grupo de tarefas independentes, lança um `studio:implementer` por tarefa **na mesma mensagem**, com `isolation: "worktree"` e `model` igual ao tier da tarefa. O prompt leva: o texto da tarefa do plano, o caminho da spec, e o comando de verificação. Tarefas dependentes correm depois das suas dependências.
-3. Lê o relatório de cada implementer. `feito` → confirma tu a verificação na branch dele e integra-a em `studio/<slug>`. `bloqueado` → aplica as **condições de paragem**.
+3. Lê o relatório de cada implementer. `feito` → confirma tu a verificação na branch dele e integra-a em `studio/<slug>`. **Depois de integrar, remove o worktree e a branch dele** (`git worktree remove --force <caminho>` e `git branch -D <branch>`). Cada worktree pode ter o seu próprio `node_modules` ou venv, e deixá-los acumular enche o disco. `bloqueado` → aplica as **condições de paragem**.
 4. Marca o progresso em `plan.md` e `state.md` à medida que cada tarefa fecha.
 
 ### Condições de paragem
@@ -96,7 +96,7 @@ Regras do plano:
 
 ## Fase 6 — Entrega
 
-1. Garante commits limpos em `studio/<slug>`, com mensagens que dizem o porquê.
+1. Garante commits limpos em `studio/<slug>`, com mensagens que dizem o porquê. Confirma que não ficaram worktrees nem branches de implementers (`git worktree list`, branches `worktree-agent-*`). Remove os que já estejam integrados e corre `git worktree prune`.
 2. Escreve `delivery.md`: o que foi feito, como verificar, decisões tomadas, o que ficou de fora, menores por resolver, custo/tentativas notáveis.
 3. **Gate 2** (exceto `--auto`): apresenta o resumo e pergunta ao utilizador o destino: abrir PR, merge local, ou deixar a branch como está. Nunca faças push nem merge sem esta resposta.
 

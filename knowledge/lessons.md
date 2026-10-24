@@ -16,6 +16,7 @@ Uma linha acionável cada. Atualizar em vez de duplicar; apagar o que deixou de 
 ## Review e verificação
 
 - Test runners com descoberta automática (`node --test`, pytest, jest…) também apanham os testes de outras branches em `.claude/worktrees/`: aponta o comando de verificação para as pastas de teste do projeto ou exclui `.claude/`. (origem: [[eval-001-slugify]], 2026-10-23)
+- Auditores, verificadores e reviewers nunca leem nem pedem por HTTP a pasta de dados reais do utilizador (ex.: `data/`): diz-lo no prompt de todas as lentes e reproduz numa cópia mínima com dados falsos. (origem: [[audit-dashboard]], 2026-10-24)
 
 # Stack
 
@@ -27,4 +28,12 @@ Uma linha acionável cada. Atualizar em vez de duplicar; apagar o que deixou de 
 
 ## Stack: react
 
-- Testes com Testing Library: usa `user.paste` para texto (não `user.type` tecla a tecla) e `testTimeout` ≥ 15 s no Vitest desde o esqueleto; com agentes em paralelo, os testes de formulário passam os 5 s e o verify fica intermitente. (origem: [[financas-pessoais]], 2026-10-24)
+- Testes com Testing Library: usa `user.paste` para texto (não `user.type` tecla a tecla); com agentes em paralelo, os testes de formulário tecla a tecla passam os 5 s e o verify fica intermitente. (origem: [[financas-pessoais]], 2026-10-24)
+
+## Stack: vitest
+
+- Desde o esqueleto, define `testTimeout` e `hookTimeout` (≥ 15–30 s) no `vitest.config`: subir só o `testTimeout` deixa os `beforeEach` pesados (BD, scrypt, `app.ready()`) nos 10 s por omissão e o verify continua a falhar sob carga. (origem: [[financas-pessoais]], [[audit-dashboard]], 2026-10-24)
+
+## Stack: vite
+
+- No Windows, `os.tmpdir()` pode devolver um caminho 8.3 com `~` (ex.: `EXT_TI~1`) e o Vite recusa servir caminhos com `~`: em testes que arrancam o Vite usa `realpathSync.native(mkdtempSync(...))`. (origem: [[audit-dashboard]], 2026-10-24)

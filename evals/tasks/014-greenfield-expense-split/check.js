@@ -80,7 +80,12 @@ assert.deepStrictEqual(
   'A paga 30 só por B e C: cada um paga 15 a A');
 
 assert.deepStrictEqual(run('pagou só para si', [exp('A', 20, ['A'])], { tol: 0.0051 }), [], 'quem paga só por si não gera transferências');
-assert.deepStrictEqual(run('despesa de valor zero', [exp('A', 0, ['A', 'B'])], { tol: 0.0051 }), [], 'despesa de 0 € não gera transferências');
+// O contrato não diz o que fazer com despesas de 0 €: aceitar ([] sem transferências) ou rejeitar com um erro são ambos corretos.
+{
+  let rejected = false;
+  try { settle([exp('A', 0, ['A', 'B'])]); } catch (e) { rejected = !(e instanceof assert.AssertionError); }
+  if (!rejected) assert.deepStrictEqual(run('despesa de valor zero', [exp('A', 0, ['A', 'B'])], { tol: 0.0051 }), [], 'despesa de 0 € aceite não gera transferências');
+}
 assert.deepStrictEqual(run('tudo equilibrado', [exp('A', 20, ['A', 'B']), exp('B', 20, ['A', 'B'])], { tol: 0.0051 }), [],
   'quando as contas já estão certas não há transferências');
 

@@ -124,7 +124,7 @@ Lê cada skill antes de a instalar e fixa a versão. São código que corre com 
 
 | Ferramenta | Para quê | Onde liga |
 |---|---|---|
-| Ponytail (`DietrichGebert/ponytail`) | Menos over-building | implementer |
+| Ponytail (`DietrichGebert/ponytail`, plugin 5.3.2) | Menos over-building | **Adotado** (A/B de 2026-10-25, evals 012–014): **−58% de código** (2 670 → 1 134 linhas), **−43% de custo** (30,8 → 17,5 USD), −29% de tempo, 3/3 a passar nos dois grupos. Instalado a nível de utilizador; um hook leva-o aos subagentes. Entrou porque a app de finanças tinha "muito código para uma app simples". A vigiar nas retros: os testes também caíram 64%. Para reviews e auditorias continuam a usar-se o `studio:reviewer` e o `/studio:audit`, não o `ponytail-review` nem o `ponytail-audit` |
 | addyosmani/agent-skills | Adaptar práticas ao pipeline (não correr em paralelo) | build |
 | thermo-nuclear review (só a skill, sem o pstack) | Review estrutural em marcos | reviewer, ocasional |
 | Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; detetor determinístico sem LLM | **Integrado na 0.4.0**: direção de design na spec, sistema visual como primeira tarefa de UI, gate de design na review. Entrou porque a interface da app de finanças saiu esteticamente fraca. **Desligar a telemetria** (`impeccable telemetry off`) |

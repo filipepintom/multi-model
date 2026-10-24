@@ -1,0 +1,56 @@
+```json
+[
+  {
+    "id": "V1",
+    "verdict": "refuted",
+    "severity": "low",
+    "file": "src/static.js",
+    "line": 13,
+    "duplicate_of": null,
+    "reason": "O `path.resolve` da linha 12 é seguido de uma guarda na linha 13: `if (!target.startsWith(PUBLIC_DIR + path.sep)) throw new HttpError(404, ...)`. O `%2F` é descodificado em `router.js:57`, mas o caminho resolvido que sai de `public/` é rejeitado. O `+ path.sep` impede também o truque do prefixo `public-x`. O auditor ignorou a linha seguinte. Riscos residuais, como symlinks dentro de `public/`, não foram alegados.",
+    "proof": "Traço de código: `/assets/..%2F..%2Fsrc%2Fdb.js` dá `params.rest = '../../src/db.js'`. `path.resolve` devolve `<raiz>/src/db.js`. Este caminho não começa por `<raiz>/public/`, por isso responde 404."
+  },
+  {
+    "id": "V2",
+    "verdict": "refuted",
+    "severity": "low",
+    "duplicate_of": null,
+    "reason": "O comando em `src/server.js:15` é uma string constante. Não inclui nenhum input do pedido: nem `req`, nem headers, nem query. O `cwd` é `__dirname` e o resultado fica em cache (`server.js:13`, `server.js:16`). O 'ambiente do pedido' não influencia o comando. Usar `exec` com um literal fixo não é injeção.",
+    "proof": "Traço de código: `currentCommit()` não recebe argumentos e o handler de `/version` (`server.js:26-28`) não passa nada do pedido para o `exec`."
+  },
+  {
+    "id": "V3",
+    "verdict": "refuted",
+    "severity": "low",
+    "duplicate_of": null,
+    "reason": "`expected.length` vem do hash guardado e `actual` é gerado por `scrypt` com `keylen = expected.length` (`auth.js:22`). Os dois tamanhos são sempre iguais, por isso a comparação `===` da linha 23 é constante e não revela nada controlado pelo atacante. O `timingSafeEqual` faz a comparação de conteúdo. Além disso, o tempo medido é dominado pelo scrypt. A mitigação do utilizador inexistente em `auth.js:43-47` também está correta.",
+    "proof": "Traço de código: o tamanho de `actual` é sempre `expected.length`, independentemente da password enviada."
+  },
+  {
+    "id": "V4",
+    "verdict": "refuted",
+    "severity": "low",
+    "file": "src/router.js",
+    "line": 92,
+    "duplicate_of": null,
+    "reason": "`err.stack` só vai para o log do servidor (`router.js:90`). A resposta ao cliente é `sendError(res, 500, 'internal server error')` (`router.js:92`), uma mensagem genérica. O cenário descrito, em que a resposta HTTP devolve o stack, não existe.",
+    "proof": "Traço de código: no ramo 500, `err` só é usado em `log.error`. O corpo da resposta é a string fixa."
+  },
+  {
+    "id": "V5",
+    "verdict": "confirmed",
+    "severity": "high",
+    "duplicate_of": null,
+    "reason": "`src/routes/files.js:17` faz `path.join(UPLOADS_DIR, name)` com `name` vindo de `req.query.get('name')` (linha 14), sem validação nem verificação de prefixo. Ao contrário de V1, não há guarda `startsWith`. A rota não tem `requireAuth` (linha 13), por isso é pública. Depois há `stat` e `isFile` (linhas 18-19) e o ficheiro é enviado em stream (linha 25). Baixei de critical para high porque só permite leitura, não escrita nem execução. Continua a ser leitura arbitrária de ficheiros sem autenticação, por exemplo `.env` e código-fonte.",
+    "proof": "Traço de código: `?name=../../src/db.js` dá `path.join('<raiz>/var/uploads', '../../src/db.js')`, que resolve para `<raiz>/src/db.js`. O ficheiro existe, é um ficheiro normal, e é devolvido com 200. Não executei a reprodução, mas o traço não tem lacunas."
+  },
+  {
+    "id": "V6",
+    "verdict": "confirmed",
+    "severity": "high",
+    "duplicate_of": null,
+    "reason": "Em `src/services/wallet.js:22` o saldo é lido para uma variável local, depois há um `await assessRisk` de 25 ms (linha 25), e só depois `wallet.balance = balance - amount` (linha 28). Duas chamadas concorrentes leem ambas 100, passam a verificação da linha 23 e escrevem ambas 44,65. Há dois débitos no ledger e só um é descontado do saldo. A única guarda em `payments.js:48-49` é por encomenda, através do `order.status = 'processing'`. Não impede dois pagamentos de encomendas diferentes do mesmo utilizador. Não há lock nem fila em nenhum caminho de chamada.",
+    "proof": "Traço de código: um utilizador com saldo de 100 € e duas encomendas pendentes de 55,35 € faz dois POST concorrentes a `/orders/:id/pay` com `method=wallet`. Cada um passa pelo estado `pending` da sua própria encomenda, ambos entram em `debit()` e ambos leem 100. Ambos esperam 25 ms e ambos escrevem 44,65. As duas encomendas ficam pagas, com 110,70 € em bens por 55,35 € descontados."
+  }
+]
+```

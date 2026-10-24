@@ -78,8 +78,9 @@ Se o âmbito tiver mais de 60 ficheiros, divide cada lente em 2 auditores por á
 
 1. Extrai os findings de cada resposta. Descarta os que não tenham `file`, `line` ou `scenario`.
 2. **Junta os duplicados**: o mesmo sítio ou a mesma causa raiz vinda de lentes diferentes passa a ser um finding só, com a severidade mais alta, todas as localizações em `related` e as lentes combinadas.
-3. Atribui ids finais `F1…Fn`.
-4. Mais de 25 → verifica só os 25 de maior severidade e confiança; os outros passam a uma linha em "Também observado".
+3. **Procura cadeias.** As lentes avaliam cada problema isolado, mas os ataques e os incidentes reais combinam problemas. Por exemplo: um servidor local sem autenticação somado a uma injeção SQL na pesquisa dá uma leitura remota da base de dados; um corpo de pedido sem limite somado a uma regex lenta dá um DoS barato. Quando dois findings juntos têm um impacto maior do que cada um sozinho, sobe a severidade do mais grave, descreve a cadeia no cenário e liga o outro em `related`. Não juntes problemas que se corrigem de forma independente: o backlog tem de continuar acionável.
+4. Atribui ids finais `F1…Fn`.
+5. Mais de 25 → verifica só os 25 de maior severidade e confiança; os outros passam a uma linha em "Também observado".
 
 ## Fase 6 — Verificação adversarial
 
@@ -93,6 +94,8 @@ Aplica os resultados:
 ## Fase 7 — Priorizar e escrever
 
 **Pontuação** = peso da severidade (critical 8, high 5, medium 3, low 1) × confiança (confirmed 1,0, plausible 0,6) ÷ esforço (S 1, M 2, L 3). O backlog tem **no máximo 15** findings não refutados, por ordem de pontuação.
+
+A fórmula é o ponto de partida, não a palavra final. Podes mudar a ordem quando o contexto o justificar: um `critical` grande não deve ficar atrás de cinco `low` pequenos, e uma correção pode desbloquear outras. Cada ajuste fica justificado numa linha no `report.md`.
 
 Para cada item do backlog define:
 - `mode`: `rápido` ou `completo`, com os critérios da triagem do `/studio:build` (segurança, dados, concorrência ou auth → completo);

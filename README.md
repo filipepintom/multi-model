@@ -95,6 +95,7 @@ Os resultados (passou, custo, duração, turnos, modelo, versão do estúdio) v�
 | Grande | 012 app de notas CRUD, 013 refactor de error handling |
 | Greenfield (com fase de ideia) | 014 dividir despesas, 015 streaks de hábitos |
 | Auditoria (`command` = `/studio:audit`) | 016 API de loja em Node, 017 app de despesas em Python |
+| Agentes isolados (`command` = `agent:<nome>`) | 018 o verificador perante 4 findings falsos e 2 reais (sobre o fixture da 016) |
 
 As evals de auditoria plantam 8 problemas reais (alguns óbvios, outros só visíveis atravessando ficheiros) e 4 **decoys**: código que parece suspeito mas está correto. A biblioteca [`evals/lib/audit-check.js`](evals/lib/audit-check.js) mede:
 - o **recall**, ou quantos dos problemas plantados foram reportados (o mínimo para passar é 75%);

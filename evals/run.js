@@ -8,8 +8,10 @@
 //   node evals/run.js --dry-run             valida os checks: falham no fixture e passam com reference/ aplicada
 //
 // Cada tarefa: task.md (pedido), check.js (escondido), reference/ (solução de referência, só para validar),
-// fixture/ (código inicial, opcional), command (comando do estúdio, opcional; por omissão /studio:build),
-// flags (flags extra, opcional; por omissão --skip-idea no build e nada nos outros comandos).
+// fixture/ (código inicial, opcional), fixture-from (id de outra tarefa cujo fixture reutilizar, opcional),
+// command (comando do estúdio, opcional; por omissão /studio:build; `agent:<nome>` corre um agente diretamente com
+// task.md como prompt), flags (flags extra, opcional; por omissão --skip-idea no build e nada nos outros comandos).
+// A resposta final do agente fica em .eval-output.txt no workspace, para o check a poder ler.
 //
 // Os checks podem usar as bibliotecas de evals/lib via process.env.EVAL_LIB e reportar métricas com uma
 // linha `METRICS {...}` no stdout, que fica na coluna "metricas" do results.csv.
@@ -59,7 +61,10 @@ function prepareWorkspace(taskDir, id, withReference = false) {
   // Caminho longo real: nomes 8.3 (EXT_TI~1) são tratados como suspeitos e exigem aprovação manual.
   const tmp = fs.realpathSync.native(os.tmpdir());
   const ws = fs.realpathSync.native(fs.mkdtempSync(path.join(tmp, `studio-eval-${id}-`)));
-  const fixture = path.join(taskDir, 'fixture');
+  const fixtureFrom = path.join(taskDir, 'fixture-from');
+  const fixture = fs.existsSync(fixtureFrom)
+    ? path.join(TASKS_DIR, fs.readFileSync(fixtureFrom, 'utf8').trim(), 'fixture')
+    : path.join(taskDir, 'fixture');
   if (fs.existsSync(fixture)) fs.cpSync(fixture, ws, { recursive: true });
   else fs.writeFileSync(path.join(ws, 'README.md'), `# ${id}\n`);
   if (withReference) fs.cpSync(path.join(taskDir, 'reference'), ws, { recursive: true });
@@ -78,10 +83,11 @@ function runCheck(taskDir, ws) {
   return { pass: r.status === 0, output: `${r.stdout}${r.stderr}`.trim(), metrics };
 }
 
-function runClaude(prompt, ws) {
+function runClaude(prompt, ws, agent) {
   const args = [
     '-p', '--output-format', 'json',
     '--model', model,
+    ...(agent ? ['--agent', agent] : []),
     '--plugin-dir', PLUGIN_DIR,
     // auto: um classificador aprova ações seguras sem humano; os guardrails do plugin continuam ativos.
     '--permission-mode', 'auto',
@@ -133,7 +139,8 @@ for (const id of tasks) {
   const readOpt = (name) => (fs.existsSync(path.join(taskDir, name)) ? fs.readFileSync(path.join(taskDir, name), 'utf8').trim() : undefined);
   const command = readOpt('command') || '/studio:build';
   const flags = readOpt('flags') ?? (command === '/studio:build' ? '--skip-idea' : '');
-  const prompt = `${command} --auto ${flags}\n\n${taskText}`.replace(/ +\n/, '\n');
+  const agent = command.startsWith('agent:') ? command.slice('agent:'.length).trim() : undefined;
+  const prompt = agent ? taskText : `${command} --auto ${flags}\n\n${taskText}`.replace(/ +\n/, '\n');
 
   if (dryRun) {
     const problems = [];
@@ -159,8 +166,9 @@ for (const id of tasks) {
   console.log(`→ ${id} …`);
   // Tempo medido aqui: o duration_ms do JSON só cobre o último turno quando o orquestrador espera por subagentes.
   const started = Date.now();
-  const out = runClaude(prompt, ws);
+  const out = runClaude(prompt, ws, agent);
   const seconds = Math.round((Date.now() - started) / 1000);
+  fs.writeFileSync(path.join(ws, '.eval-output.txt'), String(out.result || ''));
   const check = runCheck(taskDir, ws);
   if (!check.pass) failures++;
   fs.appendFileSync(RESULTS, csvRow([

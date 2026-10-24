@@ -23,7 +23,7 @@ const { execSync } = require('child_process');
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low'];
 const VERDICTS = ['confirmed', 'plausible', 'refuted'];
-const ALLOWED_WRITES = [/^docs\//, /^\.studio\//, /^\.claude\//, /^\.gitignore$/, /^\.eval-check\.js$/];
+const ALLOWED_WRITES = [/^docs\//, /^\.studio\//, /^\.claude\//, /^\.gitignore$/, /^\.eval-/];
 
 function fail(msg) {
   console.error(`FALHOU: ${msg}`);

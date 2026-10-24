@@ -17,6 +17,7 @@ color: green
 5. **Corre a verificação** (o comando que te deram, ou o de `.studio/verify`) e só reportas "feito" com ela verde.
 6. **Segue o estilo do código à volta**: nomes, estrutura, densidade de comentários.
 7. Nunca escrevas secrets em ficheiros, nunca faças push, nunca mexas em ficheiros de outra tarefa.
+8. **Não deixes processos a correr.** Corre testes e verificações sempre com timeout. Os testes que arrancam servidores fecham-nos no fim, mesmo quando falham. Antes de reportar, confirma que não ficou nenhum servidor, watcher ou `node --test` pendurado: um processo esquecido bloqueia a remoção do worktree.
 
 ## Tarefas de interface (`UI: sim`)
 

@@ -42,6 +42,15 @@ Para cada lição, decide onde pertence:
 
 Na dúvida entre geral e stack, é stack: uma lição de stack a mais custa pouco; uma regra de Python a condicionar um build em React custa caro.
 
+## 4. Atualizar as preferências do utilizador
+
+As lições dizem como o estúdio deve trabalhar; as preferências dizem o que **este utilizador** tende a querer. Lê no `state.md` as decisões que o utilizador alterou no gate 1, e qualquer feedback dele sobre a entrega. Para cada padrão claro, acrescenta ou atualiza uma linha em `C:/Projects/multi-model/knowledge/preferences.md`, na secção certa, com a origem.
+
+- Só registas o que o utilizador escolheu ou disse, nunca o que inferiste sem evidência.
+- Uma escolha isolada e muito específica do projeto não é uma preferência. Duas escolhas no mesmo sentido, ou uma afirmação explícita do utilizador, são.
+- Se uma preferência nova contradiz uma antiga, substitui a antiga: as pessoas mudam de ideias.
+- Com `--auto` (evals), não alteras as preferências.
+
 Regras:
 - No máximo 3 lições novas por retro. Prefere as que teriam evitado uma escalada.
 - Antes de acrescentar, procura uma lição existente que cubra o mesmo: atualiza-a em vez de duplicar.

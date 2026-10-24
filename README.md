@@ -17,6 +17,8 @@ Projetos com interface passam por uma etapa de **design** na spec. Com o Impecca
 
 O detetor apanha anti-padrões, não mede beleza. É a direção aprovada no gate 1 que faz a diferença estética.
 
+O **gate 1 é uma revisão guiada.** A spec tem uma secção de **Decisões**, no máximo ~7: as escolhas que mudam o produto, o custo ou o risco, cada uma com opções, trade-offs, a recomendação do agente e o custo de mudar depois. Podes aprovar tudo como recomendado, ou escolher decisões para discutir, uma a uma. Nessa discussão, o agente defende a recomendação, mas apresenta também o melhor argumento contra ela. As alterações propagam-se à spec, e as que contrariam as recomendações alimentam o [`knowledge/preferences.md`](knowledge/preferences.md). Assim, as recomendações dos projetos seguintes ficam mais próximas do que preferes, sem nunca decidirem por ti.
+
 Para algo que já existe:
 
 ```

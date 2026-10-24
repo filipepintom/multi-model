@@ -4,6 +4,24 @@
 
 <Uma frase: que problema resolve e para quem.>
 
+## Decisões
+
+As escolhas que mudam o produto, o custo ou o risco, e que o utilizador deve validar no gate 1. No máximo ~7. O resto vai para "Assumido".
+
+### D1 — <a decisão, em forma de pergunta: "Onde ficam os dados?">
+
+- **Contexto:** <porque é que isto importa aqui, numa ou duas frases>
+- **Opções:**
+  - A — <opção> · a favor: <…> · contra: <…>
+  - B — <opção> · a favor: <…> · contra: <…>
+- **Recomendação:** <A>, porque <motivo ligado ao objetivo e às preferências conhecidas>
+- **Custo de mudar depois:** <baixo | médio | alto> — <porquê>
+- **Estado:** proposta | aceite | alterada pelo utilizador → <o que escolheu e porquê>
+
+### Assumido
+
+- <decisões menores tomadas pelo agente, uma linha cada, que o utilizador pode contestar se quiser>
+
 ## Âmbito do MVP
 
 - <funcionalidade>
@@ -23,7 +41,7 @@ Cada critério é testável: alguém consegue escrever um teste que passa ou fal
 
 - Stack: <linguagem, framework, base de dados>
 - Componentes: <módulos principais e como comunicam>
-- Decisões: <decisão → porquê → alternativa rejeitada>
+- As escolhas de arquitetura com trade-offs vão para a secção **Decisões**, não para aqui.
 
 ## Direção de design
 

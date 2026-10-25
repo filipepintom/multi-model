@@ -84,8 +84,8 @@ O objetivo é que o utilizador gaste o tempo nas 3 ou 4 decisões que importam, 
 
 O gosto do utilizador entra **aqui**, no gate 1, e não depois de a interface estar feita.
 
-- **Se a skill `impeccable` estiver disponível**, usa-a: o fluxo `init` escreve o `PRODUCT.md` (quem usa, em que situação, para fazer o quê), e o fluxo de trabalho novo (`shape`/new-work) escolhe o mundo visual e escreve o `DESIGN.md`, com tipografia, cor, espaçamento, componentes e tokens. As perguntas que ela faz ao utilizador fazem parte da conversa do gate 1. Com `--auto`, ela infere a partir do pedido e marca o que inferiu.
-- **Sem a skill**, preenche tu a secção "Direção de design" da spec (modo, contexto de uso, tom, referências e anti-referências, densidade, restrições) e escreve um `DESIGN.md` mínimo com os tokens.
+- **Usa a skill `studio:impeccable`** (incluída no plugin): o fluxo `init` escreve o `PRODUCT.md` (quem usa, em que situação, para fazer o quê), e o fluxo de trabalho novo (`shape`/new-work) escolhe o mundo visual e escreve o `DESIGN.md`, com tipografia, cor, espaçamento, componentes e tokens. As perguntas que ela faz ao utilizador fazem parte da conversa do gate 1. Com `--auto`, ela infere a partir do pedido e marca o que inferiu.
+- **Se a skill não carregar**, preenche tu a secção "Direção de design" da spec (modo, contexto de uso, tom, referências e anti-referências, densidade, restrições) e escreve um `DESIGN.md` mínimo com os tokens.
 - O resumo do gate 1 mostra a direção em 3 a 5 linhas: o modo, o tom, a tipografia e a cor de base, e uma referência. A direção visual é uma das decisões do gate 1 e pode ser discutida como as outras.
 
 ## Fase 3 — Plano

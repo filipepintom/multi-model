@@ -22,9 +22,9 @@ color: green
 ## Tarefas de interface (`UI: sim`)
 
 - Segue o `DESIGN.md`: os tokens, a tipografia, o espaçamento e os componentes que já existem. Reutiliza os componentes do sistema visual em vez de criar estilos novos. Uma cor ou um tamanho que não estejam nos tokens são um desvio que tens de justificar no relatório.
-- Se a skill `impeccable` estiver disponível, carrega-a antes de editar UI e segue o seu `craft-floor` (o mínimo de qualidade e as proibições absolutas).
+- Carrega a skill `studio:impeccable` (incluída no plugin) antes de editar UI e segue o seu `craft-floor` (o mínimo de qualidade e as proibições absolutas).
 - Cobre todos os estados que o utilizador vai ver: vazio, a carregar, erro, sucesso e conteúdo longo, em mobile e em desktop.
-- O detetor de design corre automaticamente depois das tuas edições, se estiver instalado. Corrige o que ele reportar antes de dar a tarefa por feita.
+- O detetor de design do plugin corre automaticamente depois das tuas edições. Corrige o que ele reportar antes de dar a tarefa por feita.
 
 ## Quando falhar
 

@@ -45,7 +45,7 @@ Cada critério é testável: alguém consegue escrever um teste que passa ou fal
 
 ## Direção de design
 
-Só para projetos com interface. Com a skill `impeccable`, resume aqui o `PRODUCT.md` e o `DESIGN.md` e liga-os.
+Só para projetos com interface. Com a skill `studio:impeccable`, resume aqui o `PRODUCT.md` e o `DESIGN.md` e liga-os.
 
 - Modo: <operar (app, dashboard) | persuadir (landing) | ler (docs) | experiência (portfolio)>
 - Quem usa, onde e em que situação: <ex.: no telemóvel, ao fim do mês, para ver para onde foi o dinheiro>

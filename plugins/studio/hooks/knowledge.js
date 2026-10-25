@@ -60,6 +60,13 @@ process.stdin.on('end', () => {
       `## As tuas lições (${personalDir}/lessons.md)\n\n${read(path.join(personalDir, 'lessons.md'))}`,
       `## As tuas preferências (${personalDir}/preferences.md)\n\n${read(path.join(personalDir, 'preferences.md'))}`,
     ].join('\n\n');
+    // No build, o orquestrador também segue o Ponytail (os subagentes recebem-no por hooks/subagent.js).
+    if (/^\s*\/studio:build\b/.test(prompt)) {
+      const ponytail = path.join(PLUGIN_ROOT, 'skills', 'ponytail', 'SKILL.md');
+      if (fs.existsSync(ponytail)) {
+        context += `\n\n# PONYTAIL MODE ACTIVE — level: full\n\n${fs.readFileSync(ponytail, 'utf8').replace(/^---[\s\S]*?\n---\s*/, '').trim()}`;
+      }
+    }
     if (context.length > MAX_CHARS) context = `${context.slice(0, MAX_CHARS)}\n\n[truncado: consolida as lições pessoais com /studio:retro]`;
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } }));
   } catch {

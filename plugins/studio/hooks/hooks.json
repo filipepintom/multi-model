@@ -1,5 +1,5 @@
 {
-  "description": "Guardrails do estúdio: bloqueia comandos destrutivos, scripts remotos e secrets em ficheiros; em projetos com .studio/, bloqueia push forçado/para main e exige .studio/verify verde antes de cada commit. Injeta as lições do plugin e as lições e preferências pessoais no contexto de /studio:build, /studio:audit e /studio:retro.",
+  "description": "Guardrails do estúdio: bloqueia comandos destrutivos, scripts remotos e secrets em ficheiros; em projetos com .studio/, bloqueia push forçado/para main e exige .studio/verify verde antes de cada commit. Injeta as lições e preferências em /studio:build, /studio:audit e /studio:retro, e as regras do Ponytail nos subagentes do estúdio. Corre o detetor de design do Impeccable (incluído no plugin, sem telemetria) depois de edições de UI.",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -8,6 +8,28 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/knowledge.js\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "IMPECCABLE_NO_TELEMETRY=1 \"${CLAUDE_PLUGIN_ROOT}/skills/impeccable/scripts/impeccable\" hook || true",
+            "timeout": 30
           }
         ]
       }
@@ -30,6 +52,29 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.js\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "IMPECCABLE_NO_TELEMETRY=1 \"${CLAUDE_PLUGIN_ROOT}/skills/impeccable/scripts/impeccable\" hook || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "IMPECCABLE_NO_TELEMETRY=1 \"${CLAUDE_PLUGIN_ROOT}/skills/impeccable/scripts/impeccable\" hook || true",
+            "timeout": 30
           }
         ]
       }

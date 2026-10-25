@@ -123,13 +123,16 @@ A hook injects all of this into `/studio:build`, `/studio:audit` and `/studio:re
 ## Guardrails
 
 Always on:
-- block `rm -rf` / `Remove-Item -Recurse` on the root, the home folder or `..`
-- block `curl | sh` and `iwr | iex`
-- block writes to `.env` and content that looks like a secret (AWS, GitHub, Anthropic, OpenAI, Slack and Google keys, private keys)
+- block deleting the root, a drive, the home folder or a parent folder (`rm`, `rd`, `del`, `Remove-Item` and their aliases), including inside `$(…)` and after `sudo` or `xargs`
+- block scripts from the internet piped or substituted into a shell or interpreter (`curl | sh`, `bash <(curl …)`, `iwr | iex`, `iex (iwr …)`) and encoded PowerShell commands
+- block writes to `.env` files, from the Write and Edit tools or from the shell (`>`, `tee`, `cp`, `Set-Content`…)
+- block content and commands that contain a real-looking secret (AWS, GitHub, Anthropic, OpenAI, Stripe, Slack and Google keys, private keys); placeholders such as `sk-ant-xxxx` pass
 
 In projects with a `.studio/` folder only:
-- block force pushes and pushes to `main`/`master`
-- **require `.studio/verify` to pass before every commit**
+- block force pushes and any push that lands on `main`/`master`, including a bare `git push` from `main` or from a branch that tracks it
+- **require `.studio/verify` to pass before every commit**, run in the checkout being committed (an implementer's worktree, not the session folder)
+
+The guard reads the command text: it catches mistakes, but it is not a sandbox. Shells exposed by MCP servers do not go through it. Its tests: `node --test plugins/studio/hooks/guard.test.js`.
 
 ## Bundled skills
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Guardrails determinísticos do estúdio (PreToolUse).
-// Exit 2 bloqueia a ferramenta e devolve o stderr ao agente; exit 0 deixa passar.
-// Erros internos deixam passar (fail-open): o guard nunca pode partir uma sessão.
+// Deterministic studio guardrails (PreToolUse).
+// Exit 2 blocks the tool and returns stderr to the agent; exit 0 lets it through.
+// Internal errors let it through (fail-open): the guard must never break a session.
 
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +12,7 @@ function block(msg) {
   process.exit(2);
 }
 
-// Sobe a partir de `dir` até encontrar uma pasta .studio (projeto gerido pelo estúdio).
+// Walks up from `dir` until it finds a .studio folder (a studio-managed project).
 function findStudioRoot(dir) {
   let cur = path.resolve(dir || process.cwd());
   for (;;) {
@@ -25,7 +25,7 @@ function findStudioRoot(dir) {
 
 const SECRET_PATTERNS = [
   [/AKIA[0-9A-Z]{16}/, 'AWS access key'],
-  [/-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY( BLOCK)?-----/, 'chave privada'],
+  [/-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY( BLOCK)?-----/, 'private key'],
   [/\bghp_[A-Za-z0-9]{36}\b/, 'GitHub token'],
   [/\bgithub_pat_[A-Za-z0-9_]{40,}/, 'GitHub token'],
   [/\bsk-ant-[A-Za-z0-9_-]{20,}/, 'Anthropic API key'],
@@ -38,32 +38,32 @@ const ROOT_TARGET = String.raw`(\/|\/\*|~|~\/|~\/\*|\$HOME|\$HOME\/|\.\.|\.\.\/|
 
 function checkCommand(cmd, cwd) {
   if (new RegExp(String.raw`\brm\s+(-\w+\s+)*-\w*[rR]\w*\s+(-\w+\s+)*` + ROOT_TARGET + String.raw`(\s|;|&|\||$)`).test(cmd)) {
-    block('Apagar recursivamente a raiz, a home ou a pasta-mãe está bloqueado. Apaga caminhos concretos dentro do projeto.');
+    block('Recursively deleting the root, the home folder or the parent folder is blocked. Delete specific paths inside the project.');
   }
   if (/\bRemove-Item\b/i.test(cmd) && /-Recurse\b/i.test(cmd) &&
       /(\s|['"])([A-Za-z]:\\?|~|\$HOME|\$env:USERPROFILE|\.\.)(['"]|\s|$)/i.test(cmd)) {
-    block('Remove-Item -Recurse sobre uma raiz, a home ou a pasta-mãe está bloqueado.');
+    block('Remove-Item -Recurse on a root, the home folder or the parent folder is blocked.');
   }
   if (/\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(ba|z)?sh\b/.test(cmd) ||
       /\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^|]*\|\s*(iex|Invoke-Expression)\b/i.test(cmd) ||
       /\b(iex|Invoke-Expression)\s*\(?\s*\(?\s*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object\s+Net\.WebClient)/i.test(cmd)) {
-    block('Executar scripts descarregados da internet diretamente está bloqueado. Descarrega, lê e só depois corre — com aprovação do utilizador.');
+    block('Running scripts downloaded from the internet directly is blocked. Download, read, and only then run — with the user\'s approval.');
   }
 
   const studioRoot = findStudioRoot(cwd);
   if (!studioRoot) return;
 
-  // Regras só para projetos geridos pelo estúdio.
+  // Rules only for studio-managed projects.
   if (/\bgit\s+push\b/.test(cmd)) {
     if (/\s(--force|-f)(\s|$)/.test(cmd) || /\s--force-with-lease\b/.test(cmd)) {
-      block('Push forçado está bloqueado em projetos do estúdio. Pede ao utilizador.');
+      block('Force push is blocked in studio projects. Ask the user.');
     }
     if (/\s(main|master)(\s|$)|:(main|master)(\s|$)/.test(cmd)) {
-      block('Push para main/master está bloqueado: a entrega passa pelo gate 2 do utilizador.');
+      block('Push to main/master is blocked: delivery goes through the user\'s gate 2.');
     }
   }
 
-  // Gate de commit: .studio/verify tem de estar verde.
+  // Commit gate: .studio/verify must be green.
   if (/\bgit\b(\s+-\S+(\s+\S+)?)*\s+commit\b/.test(cmd) && !/--dry-run/.test(cmd)) {
     const verifyFile = path.join(studioRoot, '.studio', 'verify');
     if (!fs.existsSync(verifyFile)) return;
@@ -73,7 +73,7 @@ function checkCommand(cmd, cwd) {
       execSync(verify, { cwd: cwd || studioRoot, stdio: 'pipe', timeout: 9 * 60 * 1000 });
     } catch (err) {
       const out = `${err.stdout || ''}${err.stderr || ''}`.trim().split('\n').slice(-40).join('\n');
-      block(`Commit bloqueado: a verificação falhou (\`${verify}\`). Corrige antes de fazer commit.\n${out}`);
+      block(`Commit blocked: verification failed (\`${verify}\`). Fix it before committing.\n${out}`);
     }
   }
 }
@@ -82,14 +82,14 @@ function checkWrite(input) {
   const filePath = input.file_path || '';
   const base = path.basename(filePath);
   if (/^\.env(\..+)?$/.test(base) && !/\.(example|sample|template)$/.test(base)) {
-    block(`Escrever em ${base} está bloqueado: secrets não entram em ficheiros geridos por agentes. Usa .env.example com valores fictícios.`);
+    block(`Writing to ${base} is blocked: secrets do not go into agent-managed files. Use .env.example with placeholder values.`);
   }
   const parts = [input.content, input.new_string];
   if (Array.isArray(input.edits)) for (const e of input.edits) parts.push(e.new_string);
   const text = parts.filter(Boolean).join('\n');
   for (const [re, label] of SECRET_PATTERNS) {
     if (re.test(text)) {
-      block(`O conteúdo parece conter um secret (${label}) em ${base}. Usa variáveis de ambiente.`);
+      block(`The content appears to contain a secret (${label}) in ${base}. Use environment variables.`);
     }
   }
 }

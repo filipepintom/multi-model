@@ -1,47 +1,47 @@
-# Auditoria — <área>
+# Audit — <area>
 
-<data> · âmbito: <o que foi auditado> · lentes: <lentes>
+<date> · scope: <what was audited> · lenses: <lenses>
 
-## Resumo
+## Summary
 
-<3–5 frases: o estado geral, o maior risco e o que fazer primeiro.>
+<3–5 sentences: the overall state, the biggest risk and what to do first.>
 
-| Severidade | Confirmados | Plausíveis |
+| Severity | Confirmed | Plausible |
 |---|---|---|
 | Critical | | |
 | High | | |
 | Medium | | |
 | Low | | |
 
-Refutados na verificação: <n> de <total>. Ficaram fora do backlog; o motivo de cada um está em `findings.json`.
+Refuted in verification: <n> of <total>. They were left out of the backlog; the reason for each is in `findings.json`.
 
 ## Backlog
 
-| # | Id | Severidade | Título | Localização | Esforço | Modo | Estado |
+| # | Id | Severity | Title | Location | Effort | Mode | Status |
 |---|---|---|---|---|---|---|---|
-| 1 | F1 | critical | <título> | `src/x.js:31` | S | completo | por fazer |
+| 1 | F1 | critical | <title> | `src/x.js:31` | S | full | to do |
 
-### F1 — <título>
+### F1 — <title>
 
-- **Onde:** `src/x.js:31–36` (também `src/y.js:12`)
-- **Cenário:** <input/estado → passos → resultado errado>
-- **Impacto:** <quem é afetado e como>
-- **Evidência:**
+- **Where:** `src/x.js:31–36` (also `src/y.js:12`)
+- **Scenario:** <input/state → steps → wrong result>
+- **Impact:** <who is affected and how>
+- **Evidence:**
   ```
-  <linhas de código>
+  <code lines>
   ```
-- **Verificação:** <confirmado/plausível: o que foi corrido ou traçado>
-- **Correção:** <passo incremental>
-- **Pedido para o build:** `/studio:build --skip-idea --<fast|full> "<request>"`
+- **Verification:** <confirmed/plausible: what was run or traced>
+- **Fix:** <incremental step>
+- **Request for the build:** `/studio:build --skip-idea --<fast|full> "<request>"`
 
-## Também observado
+## Also observed
 
-<Uma linha por problema de baixa prioridade fora do backlog. Opcional.>
+<One line per low-priority problem outside the backlog. Optional.>
 
 ## Baseline
 
-<Resumo do baseline.md: testes, cobertura, lint, dependências, hotspots.>
+<Summary of baseline.md: tests, coverage, lint, dependencies, hotspots.>
 
-## Recomendações fora do backlog
+## Recommendations outside the backlog
 
-<Por exemplo uma auditoria de segurança profunda com /claude-security, ou testes de caracterização num módulo crítico sem testes.>
+<For example a deep security audit with /claude-security, or characterization tests on a critical module without tests.>

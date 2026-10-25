@@ -1,47 +1,47 @@
-# Lente: segurança
+# Lens: security
 
-Pergunta central: **que input controlado por um atacante chega a um sítio onde causa dano, e o que o impede, se é que alguma coisa o impede?**
+Central question: **what attacker-controlled input reaches a place where it causes harm, and what stops it, if anything does?**
 
-Trabalha **da fonte para o destino**. As fontes são as fronteiras de confiança do `map.md`: parâmetros de rota e query, corpo do pedido, headers, cookies, ficheiros carregados ou importados, argumentos de linha de comandos, variáveis de ambiente controláveis e dados de serviços externos. Para cada fonte no âmbito, segue o valor até aos destinos perigosos.
+Work **from source to sink**. The sources are the trust boundaries in `map.md`: route and query parameters, request body, headers, cookies, uploaded or imported files, command-line arguments, controllable environment variables and data from external services. For each source in scope, follow the value to the dangerous sinks.
 
-## Destinos perigosos
+## Dangerous sinks
 
-**Injeção**
-- shell: `exec`, `spawn` com `shell: true`, `subprocess` com `shell=True`, `os.system`, crases. Concatenar ou interpolar input no comando é a falha;
-- SQL ou NoSQL: queries construídas com concatenação, template strings, f-strings ou `%`/`.format`, em vez de placeholders;
-- caminhos: input juntado a um diretório base sem resolver e confirmar que fica lá dentro (`../`, caminhos absolutos, symlinks);
-- desserialização: `pickle`, `yaml.load` sem SafeLoader, `eval`/`Function`/`exec`, `vm` com input;
-- templates e HTML: XSS em HTML gerado no servidor, sem escaping; injeção de headers.
+**Injection**
+- shell: `exec`, `spawn` with `shell: true`, `subprocess` with `shell=True`, `os.system`, backticks. Concatenating or interpolating input into the command is the flaw;
+- SQL or NoSQL: queries built with concatenation, template strings, f-strings or `%`/`.format`, instead of placeholders;
+- paths: input joined to a base directory without resolving it and confirming it stays inside (`../`, absolute paths, symlinks);
+- deserialization: `pickle`, `yaml.load` without SafeLoader, `eval`/`Function`/`exec`, `vm` with input;
+- templates and HTML: XSS in server-generated HTML, without escaping; header injection.
 
-**Autenticação e autorização**
-- rotas que verificam *quem* és mas não *se podes* aceder àquele recurso (IDOR): obter, alterar ou apagar por id sem confirmar o dono ou o papel;
-- verificação de autorização só no cliente, ou só em algumas rotas do mesmo recurso;
-- tokens previsíveis (`Math.random`, timestamps), sessões sem expiração, comparações de segredos que não são em tempo constante, quando isso for explorável;
-- passwords guardadas sem hash lento com salt (bcrypt, scrypt, argon2, PBKDF2).
+**Authentication and authorization**
+- routes that check *who* you are but not *whether you may* access that resource (IDOR): get, change or delete by id without confirming the owner or the role;
+- authorization checked only on the client, or only on some routes of the same resource;
+- predictable tokens (`Math.random`, timestamps), sessions without expiry, secret comparisons that are not constant-time, when that is exploitable;
+- passwords stored without a slow salted hash (bcrypt, scrypt, argon2, PBKDF2).
 
-**Disponibilidade e limites**
-- corpo de pedido, upload ou ficheiro importado sem limite de tamanho;
-- regex com backtracking catastrófico sobre input do utilizador;
-- operações caras sem limite (paginação sem máximo, exportações completas).
+**Availability and limits**
+- request body, upload or imported file without a size limit;
+- regex with catastrophic backtracking over user input;
+- expensive operations without a limit (pagination without a maximum, full exports).
 
-**Exposição**
-- segredos no código ou em ficheiros versionados;
-- stack traces, queries ou dados internos nas respostas de erro;
-- dados sensíveis em logs (passwords, tokens, dados pessoais ou financeiros);
-- SSRF: um URL fornecido pelo utilizador e pedido pelo servidor.
+**Exposure**
+- secrets in code or in versioned files;
+- stack traces, queries or internal data in error responses;
+- sensitive data in logs (passwords, tokens, personal or financial data);
+- SSRF: a user-supplied URL requested by the server.
 
-**Dependências**
-- vulnerabilidades conhecidas que o `baseline.md` reporte. Só são findings se o código usar a parte vulnerável.
+**Dependencies**
+- known vulnerabilities that `baseline.md` reports. They are only findings if the code uses the vulnerable part.
 
-## Como provar
+## How to prove it
 
-Escreve o caminho completo: `fonte (ficheiro:linha) → transformações → destino (ficheiro:linha)`, com um payload concreto e inofensivo. Por exemplo: `GET /export?name=x;touch /tmp/pwn` → `routes/exports.js:31` interpola `name` em `exec(...)` → o comando corre. Confirma que nenhum middleware ou validação pelo caminho bloqueia o payload.
+Write the full path: `source (file:line) → transformations → sink (file:line)`, with a concrete, harmless payload. For example: `GET /export?name=x;touch /tmp/pwn` → `routes/exports.js:31` interpolates `name` into `exec(...)` → the command runs. Confirm that no middleware or validation along the path blocks the payload.
 
-## Não reportar
+## Do not report
 
-- `exec` ou `subprocess` com comando constante ou lista de argumentos sem shell;
-- caminhos que já são resolvidos e confirmados como estando dentro do diretório base;
-- hashes não criptográficos usados para cache ou ETag (`md5(..., usedforsecurity=False)`), e `Math.random` para coisas que não são de segurança;
-- "boas práticas" genéricas sem vetor concreto (falta de CSP numa API JSON, headers recomendados) que não tenham impacto explorável neste código.
+- `exec` or `subprocess` with a constant command or an argument list without a shell;
+- paths that are already resolved and confirmed to be inside the base directory;
+- non-cryptographic hashes used for cache or ETag (`md5(..., usedforsecurity=False)`), and `Math.random` for things that are not security-related;
+- generic "best practices" without a concrete vector (missing CSP on a JSON API, recommended headers) that have no exploitable impact in this code.
 
-Para auditorias de segurança profundas de um repositório inteiro, recomenda no relatório o Claude Security (`/claude-security`) como passo seguinte.
+For deep security audits of a whole repository, recommend Claude Security (`/claude-security`) in the report as the next step.

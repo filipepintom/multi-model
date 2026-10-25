@@ -1,68 +1,68 @@
-# Spec — <título>
+# Spec — <title>
 
-## Objetivo
+## Goal
 
-<Uma frase: que problema resolve e para quem.>
+<One sentence: what problem it solves and for whom.>
 
-## Decisões
+## Decisions
 
-As escolhas que mudam o produto, o custo ou o risco, e que o utilizador deve validar no gate 1. No máximo ~7. O resto vai para "Assumido".
+The choices that change the product, the cost or the risk, and that the user should validate at gate 1. At most ~7. The rest goes into "Assumed".
 
-### D1 — <a decisão, em forma de pergunta: "Onde ficam os dados?">
+### D1 — <the decision, as a question: "Where does the data live?">
 
-- **Contexto:** <porque é que isto importa aqui, numa ou duas frases>
-- **Opções:**
-  - A — <opção> · a favor: <…> · contra: <…>
-  - B — <opção> · a favor: <…> · contra: <…>
-- **Recomendação:** <A>, porque <motivo ligado ao objetivo e às preferências conhecidas>
-- **Custo de mudar depois:** <baixo | médio | alto> — <porquê>
-- **Estado:** proposta | aceite | alterada pelo utilizador → <o que escolheu e porquê>
+- **Context:** <why this matters here, in one or two sentences>
+- **Options:**
+  - A — <option> · for: <…> · against: <…>
+  - B — <option> · for: <…> · against: <…>
+- **Recommendation:** <A>, because <reason tied to the goal and the known preferences>
+- **Cost of changing later:** <low | medium | high> — <why>
+- **Status:** proposed | accepted | changed by the user → <what they chose and why>
 
-### Assumido
+### Assumed
 
-- <decisões menores tomadas pelo agente, uma linha cada, que o utilizador pode contestar se quiser>
+- <minor decisions taken by the agent, one line each, that the user can challenge if they want>
 
-## Âmbito do MVP
+## MVP scope
 
-- <funcionalidade>
+- <feature>
 
-## Fora de âmbito
+## Out of scope
 
-- <o que explicitamente não entra nesta versão>
+- <what explicitly does not go into this version>
 
-## Critérios de aceitação
+## Acceptance criteria
 
-Cada critério é testável: alguém consegue escrever um teste que passa ou falha.
+Each criterion is testable: someone can write a test that passes or fails.
 
-- [ ] CA1 — <dado X, quando Y, então Z>
-- [ ] CA2 — …
+- [ ] AC1 — <given X, when Y, then Z>
+- [ ] AC2 — …
 
-## Stack e arquitetura
+## Stack and architecture
 
-- Stack: <linguagem, framework, base de dados>
-- Componentes: <módulos principais e como comunicam>
-- As escolhas de arquitetura com trade-offs vão para a secção **Decisões**, não para aqui.
+- Stack: <language, framework, database>
+- Components: <main modules and how they communicate>
+- Architecture choices with trade-offs go into the **Decisions** section, not here.
 
-## Direção de design
+## Design direction
 
-Só para projetos com interface. Com a skill `studio:impeccable`, resume aqui o `PRODUCT.md` e o `DESIGN.md` e liga-os.
+Only for projects with an interface. With the `studio:impeccable` skill, summarize `PRODUCT.md` and `DESIGN.md` here and link them.
 
-- Modo: <operar (app, dashboard) | persuadir (landing) | ler (docs) | experiência (portfolio)>
-- Quem usa, onde e em que situação: <ex.: no telemóvel, ao fim do mês, para ver para onde foi o dinheiro>
-- Tom: <3 adjetivos>
-- Referências: <produtos ou sites cujo nível visual queremos> · Anti-referências: <o que evitar>
-- Densidade: <compacta | equilibrada | arejada>
-- Restrições: <marca, cores obrigatórias, acessibilidade, modo escuro>
+- Mode: <operate (app, dashboard) | persuade (landing) | read (docs) | experience (portfolio)>
+- Who uses it, where and in what situation: <e.g. on the phone, at the end of the month, to see where the money went>
+- Tone: <3 adjectives>
+- References: <products or sites whose visual level we want> · Anti-references: <what to avoid>
+- Density: <compact | balanced | airy>
+- Constraints: <brand, required colors, accessibility, dark mode>
 
-## Dados e integrações
+## Data and integrations
 
-<Entidades principais, APIs externas, autenticação.>
+<Main entities, external APIs, authentication.>
 
-## Verificação
+## Verification
 
-- Comando: `<conteúdo de .studio/verify>`
-- UI: <fluxos a verificar no browser, se aplicável>
+- Command: `<contents of .studio/verify>`
+- UI: <flows to check in the browser, if applicable>
 
-## Riscos
+## Risks
 
-1. <risco → mitigação>
+1. <risk → mitigation>

@@ -1,43 +1,43 @@
-# Lente: manutenibilidade
+# Lens: maintainability
 
-Pergunta central: **que estrutura deste código vai causar o próximo bug, ou tornar a próxima alteração lenta e arriscada?**
+Central question: **what structure in this code will cause the next bug, or make the next change slow and risky?**
 
-Isto **não é uma revisão de estilo.** Cada finding tem de dizer o custo concreto: que bug já causa ou vai provavelmente causar, ou que alteração comum fica cara e porquê. Se não consegues dizer o custo, não reportes.
+This **is not a style review.** Each finding must state the concrete cost: what bug it already causes or will probably cause, or what common change becomes expensive and why. If you cannot state the cost, do not report.
 
-## Onde procurar primeiro
+## Where to look first
 
-Nos hotspots do `baseline.md`, onde há muito código e muitas alterações. Código feio que ninguém altera não é prioridade.
+In the hotspots in `baseline.md`, where there is a lot of code and a lot of changes. Ugly code that nobody changes is not a priority.
 
-## Classes de problemas
+## Classes of problems
 
-**Duplicação que diverge**
-- a mesma regra de negócio (preço, desconto, arredondamento, validação, permissões) implementada em mais do que um sítio. É o problema mais valioso desta lente quando as cópias **já divergiram**: aí é um bug, e o cenário mostra o resultado diferente. Reporta um só finding, com todos os sítios em `related`;
-- constantes de negócio repetidas em vez de definidas num só lugar.
+**Duplication that diverges**
+- the same business rule (price, discount, rounding, validation, permissions) implemented in more than one place. It is this lens's most valuable problem when the copies **have already diverged**: then it is a bug, and the scenario shows the different result. Report a single finding, with all the places in `related`;
+- business constants repeated instead of defined in one place.
 
-**Acoplamento e estado escondido**
-- estado global mutável lido e escrito por vários módulos;
-- módulos que conhecem detalhes internos de outros (alcançam estruturas internas em vez de usar uma interface);
-- efeitos secundários escondidos em funções com nome de consulta (`getX` que também escreve).
+**Coupling and hidden state**
+- mutable global state read and written by several modules;
+- modules that know internal details of others (reach into internal structures instead of using an interface);
+- side effects hidden in functions with query names (`getX` that also writes).
 
-**Responsabilidades misturadas**
-- funções ou módulos que fazem I/O, regras de negócio e formatação ao mesmo tempo, num hotspot, ao ponto de impedirem testes ou alterações seguras. Indica a divisão mínima ("extrair o cálculo X para uma função pura testável");
-- tratamento de erros inconsistente entre módulos parecidos, ao ponto de causar comportamento diferente para o mesmo tipo de erro.
+**Mixed responsibilities**
+- functions or modules that do I/O, business rules and formatting at the same time, in a hotspot, to the point of preventing tests or safe changes. State the minimal split ("extract calculation X into a testable pure function");
+- inconsistent error handling across similar modules, to the point of causing different behavior for the same kind of error.
 
-**Rede de segurança em falta**
-- caminhos críticos (dinheiro, permissões, persistência) sem testes, segundo o baseline ou a leitura de `test/`. Indica o teste de caracterização a escrever primeiro;
-- testes que não testam nada (sem asserts, ou asserts tautológicos) em caminhos críticos.
+**Missing safety net**
+- critical paths (money, permissions, persistence) without tests, according to the baseline or a reading of `test/`. State the characterization test to write first;
+- tests that test nothing (no asserts, or tautological asserts) on critical paths.
 
-**Código morto e enganador**
-- código que nunca é chamado, ou flags que já não mudam nada, quando confundem quem lê;
-- nomes ou comentários que descrevem o contrário do que o código faz.
+**Dead and misleading code**
+- code that is never called, or flags that no longer change anything, when they confuse the reader;
+- names or comments that describe the opposite of what the code does.
 
-## Como formular a correção
+## How to phrase the fix
 
-A correção é **incremental**: um passo que se pode fazer num PR pequeno, em segurança, com testes. Procura o "golpe de judo": a reestruturação que mantém o comportamento e torna o código muito mais pequeno ou direto. Nunca recomendes "reescrever o módulo".
+The fix is **incremental**: a step that can be done in a small PR, safely, with tests. Look for the "judo move": the restructuring that keeps the behavior and makes the code much smaller or more direct. Never recommend "rewrite the module".
 
-## Não reportar
+## Do not report
 
-- formatação, nomes ou estilo de que o linter trata;
-- preferências de padrões (classes vs funções, um framework vs outro);
-- ficheiros grandes mas estáveis e testados;
-- duplicação trivial (2 ou 3 linhas de setup) sem regra de negócio.
+- formatting, names or style that the linter handles;
+- pattern preferences (classes vs functions, one framework vs another);
+- large but stable and tested files;
+- trivial duplication (2 or 3 lines of setup) without a business rule.

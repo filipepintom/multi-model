@@ -1,28 +1,28 @@
 ---
-slug: audit-<área>
-pedido: "<pedido original>"
-fase: 0-preparar
-ambito: <repositório inteiro | módulos>
-lentes: correctness, security, maintainability
-iniciado: <YYYY-MM-DD>
+slug: audit-<area>
+request: "<original request>"
+phase: 0-prepare
+scope: <whole repository | modules>
+lenses: correctness, security, maintainability
+started: <YYYY-MM-DD>
 ---
 
-# Estado — audit-<área>
+# State — audit-<area>
 
-| Fase | Estado | Notas |
+| Phase | Status | Notes |
 |---|---|---|
-| 0 Preparar | pendente | |
-| 1 Âmbito | pendente | |
-| 2 Mapa | pendente | |
-| 3 Baseline | pendente | |
-| 4 Lentes | pendente | |
-| 5 Consolidar | pendente | |
-| 6 Verificação | pendente | |
-| 7 Priorizar e escrever | pendente | |
-| 8 Gate | pendente | |
-| 9 Execução | pendente | |
-| 10 Retro | pendente | |
+| 0 Prepare | pending | |
+| 1 Scope | pending | |
+| 2 Map | pending | |
+| 3 Baseline | pending | |
+| 4 Lenses | pending | |
+| 5 Consolidate | pending | |
+| 6 Verification | pending | |
+| 7 Prioritize and write | pending | |
+| 8 Gate | pending | |
+| 9 Execution | pending | |
+| 10 Retro | pending | |
 
-## Escaladas
+## Escalations
 
-<!-- data · fase · motivo · decisão -->
+<!-- date · phase · reason · decision -->

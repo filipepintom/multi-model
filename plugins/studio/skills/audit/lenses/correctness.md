@@ -1,49 +1,49 @@
-# Lente: correção
+# Lens: correctness
 
-Pergunta central: **onde é que este código produz um resultado errado, perde dados ou fica num estado inconsistente, com inputs ou condições que vão acontecer em produção?**
+Central question: **where does this code produce a wrong result, lose data or end up in an inconsistent state, with inputs or conditions that will happen in production?**
 
-## Onde procurar primeiro
+## Where to look first
 
-1. Os caminhos críticos do `map.md`: dinheiro, dados do utilizador, escrita persistente, autenticação e estado partilhado.
-2. Os hotspots do `baseline.md`: os ficheiros grandes e muito alterados concentram os bugs.
-3. Os testes que falham no baseline: cada um já é um finding.
+1. The critical paths in `map.md`: money, user data, persistent writes, authentication and shared state.
+2. The hotspots in `baseline.md`: large, frequently changed files concentrate bugs.
+3. The tests that fail in the baseline: each one is already a finding.
 
-## Classes de problemas
+## Classes of problems
 
-**Lógica e limites**
-- off-by-one em intervalos, paginação e índices; inclusivo vs exclusivo nas fronteiras (o último dia do mês, o último item, o fim de um intervalo);
-- casos vazios, nulos ou ausentes: lista vazia, campo opcional, divisão por zero, primeiro uso;
-- condições invertidas e precedência de operadores; comparações com o tipo errado (string vs número, `==` solto).
+**Logic and boundaries**
+- off-by-one in ranges, pagination and indexes; inclusive vs exclusive at the boundaries (the last day of the month, the last item, the end of a range);
+- empty, null or missing cases: empty list, optional field, division by zero, first use;
+- inverted conditions and operator precedence; comparisons with the wrong type (string vs number, loose `==`).
 
-**Erros e falhas parciais**
-- erros engolidos: um `catch`/`except` vazio, ou que só faz log, seguido de código que assume sucesso;
-- falhas a meio de uma operação com vários passos que deixam o estado inconsistente (debitou mas não registou; marcou como pago sem cobrar);
-- escrita não atómica de ficheiros (abrir o ficheiro real em modo "w"; uma falha a meio trunca-o);
-- recursos não libertados (ficheiros, ligações, timers) em caminhos de erro.
+**Errors and partial failures**
+- swallowed errors: an empty `catch`/`except`, or one that only logs, followed by code that assumes success;
+- failures halfway through a multi-step operation that leave the state inconsistent (debited but did not record; marked as paid without charging);
+- non-atomic file writes (opening the real file in "w" mode; a failure halfway truncates it);
+- resources not released (files, connections, timers) on error paths.
 
-**Concorrência e tempo**
-- ler-modificar-escrever com um `await`/IO pelo meio, sem lock nem operação atómica: duas execuções em simultâneo perdem uma atualização ou gastam duas vezes;
-- TOCTOU: verificar e depois usar, com uma janela entre os dois;
-- caches que ficam desatualizadas; estado global mutável partilhado entre pedidos;
-- datas: fusos horários, mudança de hora, datas sem fuso misturadas com datas com fuso, fim do mês, anos bissextos.
+**Concurrency and time**
+- read-modify-write with an `await`/IO in between, without a lock or atomic operation: two simultaneous runs lose an update or spend twice;
+- TOCTOU: check then use, with a window between the two;
+- caches that go stale; mutable global state shared between requests;
+- dates: time zones, daylight saving changes, naive dates mixed with zoned dates, end of month, leap years.
 
-**Números e dinheiro**
-- dinheiro em `float` (somas, impostos, descontos) sem aritmética de cêntimos ou decimal;
-- arredondar cada item vs arredondar o total; o arredondamento bancário do `round()` do Python vs o arredondamento comercial;
-- overflow, truncagem e conversões implícitas.
+**Numbers and money**
+- money in `float` (sums, taxes, discounts) without cents or decimal arithmetic;
+- rounding each item vs rounding the total; the banker's rounding of Python's `round()` vs commercial rounding;
+- overflow, truncation and implicit conversions.
 
-**Contratos entre módulos**
-- a mesma regra de negócio implementada em dois sítios, com comportamentos diferentes (por exemplo o preço mostrado vs o preço cobrado). Reporta os dois sítios num só finding, com `related`;
-- uma função que devolve formas diferentes conforme o caminho (às vezes `null`, às vezes lança exceção);
-- valores por omissão mutáveis (`def f(x=[])`) e objetos partilhados por referência.
+**Contracts between modules**
+- the same business rule implemented in two places, with different behaviors (for example the price shown vs the price charged). Report both places in a single finding, with `related`;
+- a function that returns different shapes depending on the path (sometimes `null`, sometimes it throws);
+- mutable default values (`def f(x=[])`) and objects shared by reference.
 
-## Como provar
+## How to prove it
 
-Para cada candidato, escreve o input concreto e o resultado errado, por exemplo: "dois pedidos `POST /wallet/debit` de 80 € em simultâneo com saldo de 100 € → ambos passam a verificação → saldo final 20 € em vez de recusar o segundo". Se não consegues escrever esta frase, não reportes.
+For each candidate, write the concrete input and the wrong result, for example: "two simultaneous `POST /wallet/debit` requests of €80 with a balance of €100 → both pass the check → final balance €20 instead of refusing the second". If you cannot write this sentence, do not report.
 
-## Não reportar
+## Do not report
 
-- estilo, nomes, formatação, ou o que um linter já apanha;
-- "falta validação" sem um input concreto que cause dano;
-- tratamento de erros correto que só é diferente do que tu farias (fazer log e relançar, devolver 5xx com contexto);
-- hipóteses que exigem que outro componente já esteja avariado.
+- style, names, formatting, or what a linter already catches;
+- "missing validation" without a concrete input that causes harm;
+- correct error handling that is only different from what you would do (log and rethrow, return 5xx with context);
+- hypotheses that require another component to already be broken.

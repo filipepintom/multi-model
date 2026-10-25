@@ -1,40 +1,40 @@
-# Lições do plugin
+# Plugin lessons
 
-Lições de base, distribuídas com cada versão do plugin. O agente só as **lê**; as lições que cada utilizador ganha com a experiência ficam nas lições pessoais, gravadas automaticamente pela retro.
-Cada build aplica a parte **Geral** e só as secções **Stack** das tecnologias do projeto.
-Uma linha acionável cada. Atualizar em vez de duplicar; apagar o que deixou de ser verdade.
+Base lessons, shipped with each version of the plugin. The agent only **reads** them; the lessons each user gains from experience go into the personal lessons, saved automatically by the retro.
+Each build applies the **General** part and only the **Stack** sections for the project's technologies.
+One actionable line each. Update instead of duplicating; delete what is no longer true.
 
-# Geral
+# General
 
-## Spec e plano
+## Spec and plan
 
-- Rate-limits, quotas e outros "verificar-depois-agir" à volta de um `await` precisam de um critério de aceitação com pedidos concorrentes (`Promise.all`), não só sequenciais: os testes sequenciais passam e a corrida só aparece na review. (origem: [[financas-pessoais]], 2026-10-24)
+- Rate limits, quotas and other "check-then-act" logic around an `await` need an acceptance criterion with concurrent requests (`Promise.all`), not only sequential ones: the sequential tests pass and the race only shows up in review. (source: [[financas-pessoais]], 2026-10-24)
 
-## Routing de modelos
+## Model routing
 
-## Implementação
+## Implementation
 
-## Review e verificação
+## Review and verification
 
-- Test runners com descoberta automática (`node --test`, pytest, jest…) também apanham os testes de outras branches em `.claude/worktrees/`: aponta o comando de verificação para as pastas de teste do projeto ou exclui `.claude/`. (origem: [[eval-001-slugify]], 2026-10-23)
-- Auditores, verificadores e reviewers nunca leem nem pedem por HTTP a pasta de dados reais do utilizador (ex.: `data/`): diz-lo no prompt de todas as lentes e reproduz numa cópia mínima com dados falsos. (origem: [[audit-dashboard]], 2026-10-24)
+- Test runners with automatic discovery (`node --test`, pytest, jest…) also pick up the tests of other branches in `.claude/worktrees/`: point the verification command at the project's test folders or exclude `.claude/`. (source: [[eval-001-slugify]], 2026-10-23)
+- Auditors, verifiers and reviewers never read, or request over HTTP, the user's real data folder (e.g. `data/`): say so in the prompt of every lens and reproduce on a minimal copy with fake data. (source: [[audit-dashboard]], 2026-10-24)
 
 # Stack
 
-<!-- Uma secção por tecnologia, criada quando aparecer a primeira lição: "## Stack: node", "## Stack: python", "## Stack: react"… -->
+<!-- One section per technology, created when the first lesson appears: "## Stack: node", "## Stack: python", "## Stack: react"… -->
 
 ## Stack: node
 
-- Cada worktree de implementer precisa do seu `npm ci` (no Windows, ~5 min): instrui-o a correr em foreground com timeout longo e a nunca o repetir a meio (repetir em paralelo dá ENOTEMPTY e `node_modules` corrompido). (origem: [[financas-pessoais]], 2026-10-24)
+- Each implementer worktree needs its own `npm ci` (on Windows, ~5 min): instruct it to run in the foreground with a long timeout and never to repeat it midway (repeating in parallel gives ENOTEMPTY and a corrupted `node_modules`). (source: [[financas-pessoais]], 2026-10-24)
 
 ## Stack: react
 
-- Testes com Testing Library: usa `user.paste` para texto (não `user.type` tecla a tecla); com agentes em paralelo, os testes de formulário tecla a tecla passam os 5 s e o verify fica intermitente. (origem: [[financas-pessoais]], 2026-10-24)
+- Tests with Testing Library: use `user.paste` for text (not `user.type` key by key); with agents in parallel, key-by-key form tests go past 5 s and verify becomes flaky. (source: [[financas-pessoais]], 2026-10-24)
 
 ## Stack: vitest
 
-- Desde o esqueleto, define `testTimeout` e `hookTimeout` (≥ 15–30 s) no `vitest.config`: subir só o `testTimeout` deixa os `beforeEach` pesados (BD, scrypt, `app.ready()`) nos 10 s por omissão e o verify continua a falhar sob carga. (origem: [[financas-pessoais]], [[audit-dashboard]], 2026-10-24)
+- From the skeleton on, set `testTimeout` and `hookTimeout` (≥ 15–30 s) in `vitest.config`: raising only `testTimeout` leaves heavy `beforeEach` hooks (DB, scrypt, `app.ready()`) at the default 10 s and verify keeps failing under load. (source: [[financas-pessoais]], [[audit-dashboard]], 2026-10-24)
 
 ## Stack: vite
 
-- No Windows, `os.tmpdir()` pode devolver um caminho 8.3 com `~` (ex.: `EXT_TI~1`) e o Vite recusa servir caminhos com `~`: em testes que arrancam o Vite usa `realpathSync.native(mkdtempSync(...))`. (origem: [[audit-dashboard]], 2026-10-24)
+- On Windows, `os.tmpdir()` can return an 8.3 path with `~` (e.g. `EXT_TI~1`) and Vite refuses to serve paths with `~`: in tests that start Vite use `realpathSync.native(mkdtempSync(...))`. (source: [[audit-dashboard]], 2026-10-24)

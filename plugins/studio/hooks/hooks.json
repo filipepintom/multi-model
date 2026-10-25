@@ -1,5 +1,5 @@
 {
-  "description": "Guardrails do estúdio: bloqueia comandos destrutivos, scripts remotos e secrets em ficheiros; em projetos com .studio/, bloqueia push forçado/para main e exige .studio/verify verde antes de cada commit. Injeta as lições e preferências em /studio:build, /studio:audit e /studio:retro, e as regras do Ponytail nos subagentes do estúdio. Corre o detetor de design do Impeccable (incluído no plugin, sem telemetria) depois de edições de UI.",
+  "description": "Studio guardrails: block destructive commands, piped remote scripts and secrets in files; in projects with .studio/, block force pushes and pushes to main and require .studio/verify to pass before every commit. Inject lessons and preferences into /studio:build, /studio:audit and /studio:retro, and the Ponytail rules into studio subagents. Run the bundled Impeccable design detector (telemetry off) after UI edits.",
   "hooks": {
     "UserPromptSubmit": [
       {

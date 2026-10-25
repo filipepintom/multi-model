@@ -1,25 +1,25 @@
-# Plano — <título>
+# Plan — <title>
 
 Spec: [spec.md](spec.md)
 
-## Grupos de execução
+## Execution groups
 
-Tarefas no mesmo grupo correm em paralelo; os grupos correm por ordem.
+Tasks in the same group run in parallel; the groups run in order.
 
-| Grupo | Tarefas |
+| Group | Tasks |
 |---|---|
 | G1 | T1, T2 |
 | G2 | T3 |
 
-## Tarefas
+## Tasks
 
-### T1 — <título>
+### T1 — <title>
 
 - **Tier:** haiku | sonnet | opus
-- **Objetivo:** <o que muda>
-- **Ficheiros prováveis:** <caminhos>
-- **Depende de:** <ids ou "nada">
-- **Feito quando:**
-  - <critério testável, ligado a CAx da spec>
-- **Verificação:** `<comando>`
-- **Estado:** pendente | em curso | feito | bloqueado (tentativas: 0)
+- **Goal:** <what changes>
+- **Likely files:** <paths>
+- **Depends on:** <ids or "nothing">
+- **Done when:**
+  - <testable criterion, tied to ACx in the spec>
+- **Verification:** `<command>`
+- **Status:** pending | in progress | done | blocked (attempts: 0)

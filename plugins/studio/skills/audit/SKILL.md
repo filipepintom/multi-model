@@ -1,118 +1,120 @@
 ---
 name: audit
-description: Auditoria de uma app ou plataforma existente — âmbito, mapa, medição objetiva, lentes independentes (correção, segurança, manutenibilidade), verificação adversarial e backlog priorizado com evidência. Não altera código; os itens escolhidos seguem depois para /studio:build. Usar quando o utilizador quer rever, avaliar ou melhorar algo que já existe.
-argument-hint: "<área ou objetivo>" [--lenses correctness,security,maintainability] [--auto]
+description: Audit of an existing app or platform — scope, map, objective measurement, independent lenses (correctness, security, maintainability), adversarial verification and a prioritized backlog with evidence. Does not change code; the chosen items then go to /studio:build. Use when the user wants to review, assess or improve something that already exists.
+argument-hint: "<area or goal>" [--lenses correctness,security,maintainability] [--auto]
 disable-model-invocation: true
 ---
 
 # /studio:audit
 
-Pedido: $ARGUMENTS
+Request: $ARGUMENTS
 
-Tu és o **orquestrador da auditoria**. Uma auditoria **diagnostica, não opera**: o resultado é um backlog priorizado e verificado, e não código. Nada no código do projeto muda durante a auditoria. Só escreves em `docs/studio/<slug>/` (e, se for preciso, no `.gitignore`). Cada correção escolhida pelo utilizador passa depois pelo `/studio:build`, com um teste que reproduz o problema antes da correção.
+You are the **audit orchestrator**. An audit **diagnoses, it does not operate**: the result is a prioritized, verified backlog, not code. Nothing in the project's code changes during the audit. You only write in `docs/studio/<slug>/` (and, if needed, in `.gitignore`). Each fix the user chooses then goes through `/studio:build`, with a test that reproduces the problem before the fix.
 
-Delega a leitura de código: o mapa ao `studio:explorer`, a procura de problemas ao `studio:auditor` e a verificação ao `studio:verifier`. O teu contexto é o recurso mais caro; guarda nele as conclusões, não os ficheiros.
+Write everything the user reads (messages, docs, reports, the text inside artifacts) in the language the user writes in; default to the language of the original request.
+
+Delegate code reading: the map to `studio:explorer`, the search for problems to `studio:auditor` and the verification to `studio:verifier`. Your context is the most expensive resource; keep conclusions in it, not files.
 
 Flags:
-- `--lenses a,b`: as lentes a usar. Por omissão: `correctness,security,maintainability`. Cada lente é uma rubrica em [lenses/](lenses/).
-- `--auto`: sem gates humanos (para evals). Para depois da fase 7 e não executa correções.
+- `--lenses a,b`: the lenses to use. Default: `correctness,security,maintainability`. Each lens is a rubric in [lenses/](lenses/).
+- `--auto`: no human gates (for evals). Stops after phase 7 and does not run fixes.
 
-## Princípios
+## Principles
 
-1. **Evidência ou nada.** Cada finding tem `ficheiro:linha`, as linhas de código e um cenário concreto que falha. Uma suspeita sem cenário não entra.
-2. **Falsos positivos custam confiança.** Tudo passa por verificação adversarial, e um finding refutado nunca chega ao backlog.
-3. **Priorizar é o produto.** No máximo 15 itens no backlog. Uma lista de 80 problemas não leva ninguém a agir.
-4. **Incremental.** Cada correção cabe num PR pequeno e começa com um teste. Nunca recomendes reescritas.
-5. **O estado vive em ficheiros**, em `docs/studio/<slug>/`. Se o `state.md` já existir, retoma a partir da fase registada.
+1. **Evidence or nothing.** Each finding has `file:line`, the code lines and a concrete scenario that fails. A suspicion without a scenario does not go in.
+2. **False positives cost trust.** Everything goes through adversarial verification, and a refuted finding never reaches the backlog.
+3. **Prioritizing is the product.** At most 15 items in the backlog. A list of 80 problems gets nobody to act.
+4. **Incremental.** Each fix fits in a small PR and starts with a test. Never recommend rewrites.
+5. **State lives in files**, in `docs/studio/<slug>/`. If `state.md` already exists, resume from the recorded phase.
 
-## Fase 0 — Preparar
+## Phase 0 — Prepare
 
-1. **Lições:** o plugin injeta no contexto, na secção "Conhecimento do estúdio", as lições do plugin e as lições pessoais; não as leias do disco. Aplica a parte **Geral**, e da parte **Stack** só as secções das tecnologias deste projeto. Em conflito, a lição pessoal prevalece.
-2. Lê o `CLAUDE.md` e o README do projeto.
-3. O projeto tem de ser um repositório git (sem isso não há histórico para os hotspots). Garante que `.claude/worktrees/` está no `.gitignore`.
-4. Define o slug `audit-<área>` e cria `docs/studio/<slug>/state.md` a partir de [templates/state.md](templates/state.md).
+1. **Lessons:** the plugin injects into the context, in the "Studio knowledge (injected by the plugin)" section, the Plugin lessons and Your lessons; do not read them from disk. Apply the **General** part, and from the **Stack** part only the sections for this project's technologies. In a conflict, Your lessons prevail.
+2. Read the project's `CLAUDE.md` and README.
+3. The project must be a git repository (without it there is no history for the hotspots). Make sure `.claude/worktrees/` is in `.gitignore`.
+4. Set the slug `audit-<area>` and create `docs/studio/<slug>/state.md` from [templates/state.md](templates/state.md).
 
-## Fase 1 — Âmbito
+## Phase 1 — Scope
 
-1. A partir do pedido, define: a área (o repositório inteiro ou módulos concretos), as lentes, o que fica fora do âmbito e o que preocupa mais o utilizador, se o disser.
-2. Conta os ficheiros de código no âmbito com `git ls-files`, sem testes, vendor, ficheiros gerados nem docs.
-3. Mais de 150 ficheiros sem área definida → **gate 0** (exceto `--auto`): propõe ao utilizador 2 a 4 áreas (os módulos de topo) com AskUserQuestion. Uma auditoria sem âmbito sai cara e superficial.
-4. Regista o âmbito no `state.md`.
+1. From the request, define: the area (the whole repository or specific modules), the lenses, what is out of scope and what worries the user most, if they say so.
+2. Count the code files in scope with `git ls-files`, excluding tests, vendor, generated files and docs.
+3. More than 150 files with no area defined → **gate 0** (except `--auto`): propose 2 to 4 areas (the top-level modules) to the user with AskUserQuestion. An audit without a scope is expensive and shallow.
+4. Record the scope in `state.md`.
 
-## Fase 2 — Mapa
+## Phase 2 — Map
 
-Lança `studio:explorer` (vários em paralelo, por grupos de módulos, se o âmbito for grande) com perguntas concretas. Se existir `graphify-out/`, os explorers começam por aí. Escreve `map.md` (no máximo ~150 linhas) com:
-- stack e como se corre;
-- componentes e responsabilidades;
-- **pontos de entrada**: rotas, comandos e jobs, com `ficheiro:linha`;
-- **fronteiras de confiança**: onde entra input externo (pedidos, ficheiros, argumentos, serviços externos);
-- armazenamento: onde e como se escreve o estado;
-- **caminhos críticos**: dinheiro, autenticação e permissões, dados pessoais, escrita persistente;
-- integrações externas.
+Launch `studio:explorer` (several in parallel, by groups of modules, if the scope is large) with concrete questions. If `graphify-out/` exists, the explorers start there. Write `map.md` (at most ~150 lines) with:
+- stack and how to run it;
+- components and responsibilities;
+- **entry points**: routes, commands and jobs, with `file:line`;
+- **trust boundaries**: where external input comes in (requests, files, arguments, external services);
+- storage: where and how state is written;
+- **critical paths**: money, authentication and permissions, personal data, persistent writes;
+- external integrations.
 
-## Fase 3 — Baseline (medição objetiva)
+## Phase 3 — Baseline (objective measurement)
 
-Corre tu mesmo o que já existe. **Não instales nada.** Se um comando falhar, regista a falha e continua.
-- testes: o total, os que falham (cada teste que falha é um finding de correção) e, se for barato, a cobertura (`node --test --experimental-test-coverage`, ou a ferramenta já configurada);
-- build, type-check e lint, se estiverem configurados;
-- dependências: `npm audit --json` se houver lockfile, `pip-audit` se já estiver instalado;
-- hotspots: as alterações por ficheiro nos últimos 12 meses (`git log --since=12.months --name-only --format=`), cruzadas com o tamanho. Os 10 ficheiros mais alterados e maiores;
-- os maiores ficheiros e funções.
+Run what already exists yourself. **Do not install anything.** If a command fails, record the failure and carry on.
+- tests: the total, the failing ones (each failing test is a correctness finding) and, if cheap, coverage (`node --test --experimental-test-coverage`, or the tool already configured);
+- build, type-check and lint, if configured;
+- dependencies: `npm audit --json` if there is a lockfile, `pip-audit` if already installed;
+- hotspots: changes per file over the last 12 months (`git log --since=12.months --name-only --format=`), crossed with size. The 10 most changed and largest files;
+- the largest files and functions.
 
-Escreve `baseline.md` com números, não com opiniões.
+Write `baseline.md` with numbers, not opinions.
 
-## Fase 4 — Lentes (em paralelo)
+## Phase 4 — Lenses (in parallel)
 
-Na **mesma mensagem**, lança um `studio:auditor` por lente. O prompt de cada um leva: o caminho absoluto da rubrica (`<pasta desta skill>/lenses/<lente>.md`), os caminhos do `map.md` e do `baseline.md`, o âmbito e a raiz do repositório.
+In the **same message**, launch one `studio:auditor` per lens. Each one's prompt carries: the absolute path of the rubric (`<this skill's folder>/lenses/<lens>.md`), the paths of `map.md` and `baseline.md`, the scope and the repository root.
 
-| Lente | Modelo |
+| Lens | Model |
 |---|---|
-| `correctness` | opus (por omissão) |
-| `security` | opus (por omissão) |
+| `correctness` | opus (default) |
+| `security` | opus (default) |
 | `maintainability` | `model: "sonnet"` |
-| outras lentes em `lenses/` | sonnet, salvo indicação da rubrica |
+| other lenses in `lenses/` | sonnet, unless the rubric says otherwise |
 
-Se o âmbito tiver mais de 60 ficheiros, divide cada lente em 2 auditores por área. Grava a resposta crua de cada auditor em `docs/studio/<slug>/raw/<lente>.md`.
+If the scope has more than 60 files, split each lens into 2 auditors by area. Save each auditor's raw response in `docs/studio/<slug>/raw/<lens>.md`.
 
-## Fase 5 — Consolidar
+## Phase 5 — Consolidate
 
-1. Extrai os findings de cada resposta. Descarta os que não tenham `file`, `line` ou `scenario`.
-2. **Junta os duplicados**: o mesmo sítio ou a mesma causa raiz vinda de lentes diferentes passa a ser um finding só, com a severidade mais alta, todas as localizações em `related` e as lentes combinadas.
-3. **Procura cadeias.** As lentes avaliam cada problema isolado, mas os ataques e os incidentes reais combinam problemas. Por exemplo: um servidor local sem autenticação somado a uma injeção SQL na pesquisa dá uma leitura remota da base de dados; um corpo de pedido sem limite somado a uma regex lenta dá um DoS barato. Quando dois findings juntos têm um impacto maior do que cada um sozinho, sobe a severidade do mais grave, descreve a cadeia no cenário e liga o outro em `related`. Não juntes problemas que se corrigem de forma independente: o backlog tem de continuar acionável.
-4. Atribui ids finais `F1…Fn`.
-5. Mais de 25 → verifica só os 25 de maior severidade e confiança; os outros passam a uma linha em "Também observado".
+1. Extract the findings from each response. Drop those without `file`, `line` or `scenario`.
+2. **Merge duplicates**: the same place or the same root cause coming from different lenses becomes a single finding, with the highest severity, all locations in `related` and the lenses combined.
+3. **Look for chains.** The lenses assess each problem in isolation, but real attacks and incidents combine problems. For example: a local server without authentication plus an SQL injection in search gives a remote read of the database; a request body without a limit plus a slow regex gives a cheap DoS. When two findings together have a greater impact than each alone, raise the severity of the more serious one, describe the chain in the scenario and link the other in `related`. Do not merge problems that are fixed independently: the backlog must stay actionable.
+4. Assign final ids `F1…Fn`.
+5. More than 25 → verify only the 25 with the highest severity and confidence; the others become one line in "Also observed".
 
-## Fase 6 — Verificação adversarial
+## Phase 6 — Adversarial verification
 
-Distribui os findings por `studio:verifier`, **em paralelo**, agrupados por ficheiro ou área, com no máximo 6 por verificador. Os grupos com algum finding `critical` ou `high` levam `model: "opus"`.
+Distribute the findings across `studio:verifier`, **in parallel**, grouped by file or area, with at most 6 per verifier. Groups with any `critical` or `high` finding get `model: "opus"`.
 
-Aplica os resultados:
-- `refuted` → fica em `findings.json` com `verdict: "refuted"` e o motivo, para transparência, mas nunca entra no backlog;
-- `plausible` → entra marcado como tal;
-- aplica as localizações corrigidas, as severidades recalibradas e os duplicados.
+Apply the results:
+- `refuted` → stays in `findings.json` with `verdict: "refuted"` and the reason, for transparency, but never enters the backlog;
+- `plausible` → enters marked as such;
+- apply the corrected locations, the recalibrated severities and the duplicates.
 
-## Fase 7 — Priorizar e escrever
+## Phase 7 — Prioritize and write
 
-**Pontuação** = peso da severidade (critical 8, high 5, medium 3, low 1) × confiança (confirmed 1,0, plausible 0,6) ÷ esforço (S 1, M 2, L 3). O backlog tem **no máximo 15** findings não refutados, por ordem de pontuação.
+**Score** = severity weight (critical 8, high 5, medium 3, low 1) × confidence (confirmed 1.0, plausible 0.6) ÷ effort (S 1, M 2, L 3). The backlog has **at most 15** non-refuted findings, in score order.
 
-A fórmula é o ponto de partida, não a palavra final. Podes mudar a ordem quando o contexto o justificar: um `critical` grande não deve ficar atrás de cinco `low` pequenos, e uma correção pode desbloquear outras. Cada ajuste fica justificado numa linha no `report.md`.
+The formula is the starting point, not the final word. You may change the order when the context justifies it: a large `critical` should not sit behind five small `low` items, and one fix may unblock others. Each adjustment is justified in one line in `report.md`.
 
-Para cada item do backlog define:
-- `mode`: `rápido` ou `completo`, com os critérios da triagem do `/studio:build` (segurança, dados, concorrência ou auth → completo);
-- `request`: o pedido pronto para o `/studio:build`, que inclui "primeiro um teste que reproduz o problema e falha".
+For each backlog item define:
+- `mode`: `fast` or `full`, using the triage criteria of `/studio:build` (security, data, concurrency or auth → full);
+- `request`: the request ready for `/studio:build`, which includes "first a test that reproduces the problem and fails".
 
-Escreve:
-- `findings.json`: os itens do backlog e os refutados, no formato abaixo. Os "também observados" não entram;
-- `report.md`, a partir de [templates/report.md](templates/report.md). Passa a skill `studio:humanizer` só pela prosa do `report.md` (o resumo e as explicações). As localizações, a evidência, os números e o `findings.json` não mudam.
+Write:
+- `findings.json`: the backlog items and the refuted ones, in the format below. The "also observed" ones do not go in;
+- `report.md`, from [templates/report.md](templates/report.md). Run the `studio:humanizer` skill only over the prose of `report.md` (the summary and the explanations). The locations, the evidence, the numbers and `findings.json` do not change.
 
-### Formato de `findings.json`
+### `findings.json` format
 
 ```json
 [
   {
     "id": "F1",
     "lens": "security",
-    "title": "Injeção de comandos na exportação",
+    "title": "Command injection in the export",
     "severity": "critical",
     "confidence": "high",
     "verdict": "confirmed",
@@ -121,50 +123,50 @@ Escreve:
     "end_line": 36,
     "related": [],
     "evidence": "exec(`tar -czf exports/${name}.tgz data/`)",
-    "scenario": "GET /export?name=x;touch%20/tmp/p → o comando executa touch",
-    "impact": "Execução remota de comandos por qualquer utilizador autenticado",
-    "fix": "Validar name contra [a-z0-9-]+ e usar execFile com argumentos",
+    "scenario": "GET /export?name=x;touch%20/tmp/p → the command runs touch",
+    "impact": "Remote command execution by any authenticated user",
+    "fix": "Validate name against [a-z0-9-]+ and use execFile with arguments",
     "effort": "S",
-    "mode": "completo",
+    "mode": "full",
     "priority": 1,
-    "request": "Corrigir a injeção de comandos em src/routes/exports.js:31. Primeiro um teste que reproduz o problema e falha.",
-    "verifier_reason": "Reproduzido: o marcador foi criado na pasta temporária"
+    "request": "Fix the command injection in src/routes/exports.js:31. First a test that reproduces the problem and fails.",
+    "verifier_reason": "Reproduced: the marker was created in the temporary folder"
   }
 ]
 ```
 
-Os refutados levam `"priority": null` e o motivo em `verifier_reason`.
+Refuted ones get `"priority": null` and the reason in `verifier_reason`.
 
-## Fase 8 — Gate (exceto `--auto`)
+## Phase 8 — Gate (except `--auto`)
 
-Apresenta ao utilizador:
-- os números por severidade;
-- o top 5 com uma linha cada;
-- quantos findings foram refutados (a calibração da auditoria);
-- recomendações fora do backlog. Por exemplo, se a lente de segurança encontrou itens `high`, recomenda uma auditoria profunda com `/claude-security`.
+Present to the user:
+- the numbers by severity;
+- the top 5 with one line each;
+- how many findings were refuted (the audit's calibration);
+- recommendations outside the backlog. For example, if the security lens found `high` items, recommend a deep audit with `/claude-security`.
 
-Pergunta quais itens avançam para correção, com AskUserQuestion `multiSelect` com os 4 primeiros (o utilizador pode indicar outros ids). Pergunta também se faz commit do relatório. Com `--auto`, termina aqui.
+Ask which items go ahead to be fixed, with AskUserQuestion `multiSelect` with the first 4 (the user may name other ids). Also ask whether to commit the report. With `--auto`, stop here.
 
-## Fase 9 — Execução dos itens escolhidos
+## Phase 9 — Running the chosen items
 
-Para cada item, por ordem de prioridade, lê [../build/SKILL.md](../build/SKILL.md) e segue-o com o `request` do item, `--skip-idea` e o `mode` do item como `--fast` ou `--full`. Regras adicionais:
-- a primeira tarefa é **sempre** um teste que reproduz o problema e **falha** antes da correção. Num refactor de manutenibilidade, são testes de caracterização que fixam o comportamento atual;
-- uma branch por item: `studio/<slug>-<id>`;
-- o gate 2 de cada build mantém-se;
-- atualiza o estado do item em `report.md`: corrigido, ou bloqueado e porquê.
+For each item, in priority order, read [../build/SKILL.md](../build/SKILL.md) and follow it with the item's `request`, `--skip-idea` and the item's `mode` as `--fast` or `--full`. Additional rules:
+- the first task is **always** a test that reproduces the problem and **fails** before the fix. In a maintainability refactor, these are characterization tests that pin the current behavior;
+- one branch per item: `studio/<slug>-<id>`;
+- each build's gate 2 stays;
+- update the item's status in `report.md`: fixed, or blocked and why.
 
-## Fase 10 — Retro
+## Phase 10 — Retro
 
-Escreve `retro.md` com:
-- números: findings por lente; refutados por lente, que medem o ruído de cada lente; duplicados entre lentes;
-- itens corrigidos;
-- **falsos positivos recorrentes:** se um padrão foi refutado mais do que uma vez, é uma lição para a secção "Não reportar" da rubrica dessa lente.
+Write `retro.md` with:
+- numbers: findings per lens; refuted per lens, which measure each lens's noise; duplicates across lenses;
+- fixed items;
+- **recurring false positives:** if a pattern was refuted more than once, it is a lesson for the "Do not report" section of that lens's rubric.
 
-Promove as lições como em `/studio:retro`, exceto com `--auto`.
+Promote the lessons as in `/studio:retro`, except with `--auto`.
 
-## Regras finais
+## Final rules
 
-- Nunca alteres código do projeto durante as fases 0 a 8.
-- Nunca reportes um finding que não tenha passado pela verificação.
-- Nada de rede, a não ser `localhost` e os comandos de dependências da fase 3. Nada destrutivo. As reproduções correm em pastas temporárias fora do repositório.
-- Escreve em português de Portugal, de forma direta. Mantém o utilizador a par numa linha por fase.
+- Never change project code during phases 0 to 8.
+- Never report a finding that has not gone through verification.
+- No network, except `localhost` and the dependency commands of phase 3. Nothing destructive. Reproductions run in temporary folders outside the repository.
+- Write directly. Keep the user informed with one line per phase.

@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "studio-local",
-  "description": "Marketplace local do estúdio multi-modelo",
+  "description": "Marketplace for the studio multi-model plugin",
   "owner": {
     "name": "Filipe Melo"
   },
   "plugins": [
     {
       "name": "studio",
-      "description": "Pipeline multi-modelo: ideia, spec, plano, implementação, review e entrega, com Opus a orquestrar e Sonnet/Haiku a executar.",
+      "description": "Multi-model pipeline: build (idea, spec, plan, implementation, review and delivery) and audit what already exists, with Opus orchestrating and Sonnet/Haiku executing.",
       "source": "./plugins/studio",
       "category": "development"
     }

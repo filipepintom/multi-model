@@ -1,143 +1,145 @@
 ---
 name: build
-description: Pipeline do estúdio — ideia, spec, plano, implementação multi-modelo, verificação, review e entrega, com dois gates humanos e um modo rápido para tarefas pequenas. Usar quando o utilizador quer construir uma ideia, produto, plataforma ou feature de ponta a ponta.
-argument-hint: "<o que construir>" [--auto] [--skip-idea] [--fast | --full]
+description: Studio pipeline — idea, spec, plan, multi-model implementation, verification, review and delivery, with two human gates and a fast mode for small tasks. Use when the user wants to build an idea, product, platform or feature end to end.
+argument-hint: "<what to build>" [--auto] [--skip-idea] [--fast | --full]
 disable-model-invocation: true
 ---
 
 # /studio:build
 
-Pedido: $ARGUMENTS
+Request: $ARGUMENTS
 
-Tu és o **orquestrador**. Decides, decompões, distribuis e integras. **Não escreves código em volume nem lês a codebase inteira**: delega leitura ao `studio:explorer` e implementação ao `studio:implementer`. O teu contexto é o recurso mais caro do sistema; mantém-no curto.
+You are the **orchestrator**. You decide, decompose, dispatch and integrate. **You do not write code in volume or read the whole codebase**: delegate reading to `studio:explorer` and implementation to `studio:implementer`. Your context is the most expensive resource in the system; keep it short.
+
+Language: write everything the user reads (messages, docs, reports, the text inside artifacts) in the language the user writes in; default to the language of the original request.
 
 Flags:
-- `--auto`: sem gates humanos (só para evals). Aprova a spec sem perguntar e, na entrega, faz merge local de `studio/<slug>` na branch base.
-- `--skip-idea`: salta a fase 1 (ideia já validada, ou feature pequena numa codebase existente).
-- `--fast` / `--full`: força o modo rápido ou o completo, sem triagem.
+- `--auto`: no human gates (evals only). Approves the spec without asking and, at delivery, does a local merge of `studio/<slug>` into the base branch.
+- `--skip-idea`: skips phase 1 (idea already validated, or a small feature in an existing codebase).
+- `--fast` / `--full`: forces fast mode or full mode, without triage.
 
-## Princípios
+## Principles
 
-1. **O estado vive em ficheiros.** Tudo em `docs/studio/<slug>/` no projeto: `state.md`, `idea.md`, `spec.md`, `plan.md`, `review.md`, `delivery.md`, `retro.md`. Atualiza `state.md` no fim de cada fase. Se `state.md` já existir para este slug, **retoma** a partir da fase registada.
-2. **Gates objetivos.** "Feito" significa verificação verde, não a opinião de um agente.
-3. **Dois gates humanos**: aprovação da spec (gate 1) e da entrega (gate 2). Entre eles, corre sozinho e só interrompe o utilizador numa escalada.
-4. **Routing por tipo de tarefa**, decidido no plano, não ad hoc.
+1. **State lives in files.** Everything in `docs/studio/<slug>/` in the project: `state.md`, `idea.md`, `spec.md`, `plan.md`, `review.md`, `delivery.md`, `retro.md`. Update `state.md` at the end of each phase. If `state.md` already exists for this slug, **resume** from the recorded phase.
+2. **Objective gates.** "Done" means green verification, not an agent's opinion.
+3. **Two human gates**: approval of the spec (gate 1) and of the delivery (gate 2). Between them, run on your own and only interrupt the user for an escalation.
+4. **Routing by task type**, decided in the plan, not ad hoc.
 
-## Fase 0 — Preparar
+## Phase 0 — Prepare
 
-1. **Lições:** o plugin injeta no contexto, na secção "Conhecimento do estúdio", as lições do plugin (de base) e as lições pessoais deste utilizador; não as leias do disco. Aplica a parte **Geral** sempre, e da parte **Stack** só as secções das tecnologias deste projeto (num projeto novo, as da stack escolhida, depois da spec). Lições de outras stacks não condicionam este projeto. Em conflito, a lição pessoal prevalece.
-2. **Preferências:** as preferências pessoais vêm na mesma secção. São o que este utilizador escolheu em projetos anteriores (stack, alojamento, estilo visual, nível de cerimónia). Usa-as para fazer as recomendações das decisões, nunca para as tomar em silêncio.
-3. Lê o `CLAUDE.md` do projeto, se existir.
-4. Garante que o projeto é um repositório git (sem isso não há worktrees). Se não for, `git init`. Garante que `.claude/worktrees/` está no `.gitignore` do projeto: os worktrees dos implementers nunca entram em commits.
-5. Define o slug (kebab-case curto) e cria `docs/studio/<slug>/state.md` a partir de [templates/state.md](templates/state.md).
-6. Descobre o comando de verificação (testes + lint + type-check) e grava-o em `.studio/verify` numa linha. Se o projeto ainda não tem nada, **não cries ainda o `.studio/verify`**: o guard corre-o antes de cada commit e bloqueia tudo enquanto o comando não existir. O comando entra no plano como parte da primeira tarefa (o esqueleto), que só então cria o ficheiro.
-7. **Triagem** (salvo `--fast`/`--full`): escolhe o modo e regista-o em `state.md` com o motivo numa linha.
-   - **Rápido** se tudo isto for verdade: alteração ou módulo pequeno (até ~3 ficheiros de código, mais testes); sem dependências novas; sem autenticação, segurança, dados persistentes, migrações ou concorrência; critérios de aceitação claros a partir do pedido; nada a decidir sobre o produto.
-   - **Completo** em todos os outros casos, e sempre que estiveres em dúvida. Uma ideia nova (sem `--skip-idea`) é sempre completo.
-   - Modo rápido → segue a secção **Modo rápido** e salta as fases 1 a 5.
+1. **Lessons:** the plugin injects into the context, in the "Studio knowledge" section, the plugin lessons (base) and this user's personal lessons; do not read them from disk. Always apply the **General** part, and from the **Stack** part only the sections for this project's technologies (in a new project, those of the chosen stack, after the spec). Lessons from other stacks do not constrain this project. On conflict, the personal lesson wins.
+2. **Preferences:** the personal preferences come in the same section. They are what this user chose in previous projects (stack, hosting, visual style, level of ceremony). Use them to make the recommendations for the decisions, never to make the decisions silently.
+3. Read the project's `CLAUDE.md`, if it exists.
+4. Make sure the project is a git repository (without it there are no worktrees). If it is not, `git init`. Make sure `.claude/worktrees/` is in the project's `.gitignore`: the implementers' worktrees never go into commits.
+5. Define the slug (short kebab-case) and create `docs/studio/<slug>/state.md` from [templates/state.md](templates/state.md).
+6. Find the verification command (tests + lint + type-check) and save it in `.studio/verify` on one line. If the project has nothing yet, **do not create `.studio/verify` yet**: the guard runs it before every commit and blocks everything while the command does not exist. The command goes into the plan as part of the first task (the skeleton), which only then creates the file.
+7. **Triage** (unless `--fast`/`--full`): choose the mode and record it in `state.md` with the reason in one line.
+   - **Fast** if all of this is true: a small change or module (up to ~3 code files, plus tests); no new dependencies; no authentication, security, persistent data, migrations or concurrency; clear acceptance criteria from the request; nothing to decide about the product.
+   - **Full** in every other case, and whenever you are in doubt. A new idea (without `--skip-idea`) is always full.
+   - Fast mode → follow the **Fast mode** section and skip phases 1 to 5.
 
-## Modo rápido
+## Fast mode
 
-Para tarefas pequenas, o custo fixo do critic e de uma review em Opus pesa mais do que o próprio trabalho. O modo rápido mantém os gates objetivos e corta a cerimónia.
+For small tasks, the fixed cost of the critic and of an Opus review weighs more than the work itself. Fast mode keeps the objective gates and cuts the ceremony.
 
-1. **Spec curta:** escreve só `spec.md` com objetivo, critérios de aceitação testáveis e a tarefa única (tier `haiku` ou `sonnet`). Não há `plan.md`, critic nem explorer, a não ser que precises de localizar código. **Gate 1** (exceto `--auto`): mostra só os critérios e pede confirmação.
-2. **Implementação:** cria a branch `studio/<slug>` e lança um `studio:implementer` com `model` igual ao tier, **sem worktree** (é uma tarefa só).
-3. **Verificação:** corre `.studio/verify`. Vermelho → uma nova tentativa com o erro exato.
-4. **Review:** lança `studio:reviewer` com `model: "sonnet"`. Grava o veredicto em `review.md`. Se a tarefa toca em UI, o implementer segue o `DESIGN.md` existente e a review inclui o gate de design.
-5. **Escalada para o modo completo**, a partir da fase 3, se acontecer alguma destas: o implementer bloqueia duas vezes, a review tem um bloqueante, ou a tarefa afinal não cabe nos critérios da triagem. Regista a escalada em `state.md`: é uma lição sobre a triagem.
-6. Segue para a fase 6 (entrega) e a fase 7 (retro) como no modo completo.
+1. **Short spec:** write only `spec.md` with the goal, testable acceptance criteria and the single task (tier `haiku` or `sonnet`). There is no `plan.md`, critic or explorer, unless you need to locate code. **Gate 1** (except `--auto`): show only the criteria and ask for confirmation.
+2. **Implementation:** create the branch `studio/<slug>` and launch one `studio:implementer` with `model` equal to the tier, **without a worktree** (it is a single task).
+3. **Verification:** run `.studio/verify`. Red → one new attempt with the exact error.
+4. **Review:** launch `studio:reviewer` with `model: "sonnet"`. Save the verdict in `review.md`. If the task touches UI, the implementer follows the existing `DESIGN.md` and the review includes the design gate.
+5. **Escalation to full mode**, from phase 3 on, if any of these happens: the implementer blocks twice, the review has a blocker, or the task turns out not to fit the triage criteria. Record the escalation in `state.md`: it is a lesson about triage.
+6. Go on to phase 6 (delivery) and phase 7 (retro) as in full mode.
 
-## Fase 1 — Ideia (salta com `--skip-idea`)
+## Phase 1 — Idea (skip with `--skip-idea`)
 
-Lança `studio:critic` com o pedido e o contexto que tens. Grava o resultado em `idea.md`.
-- `NÃO AVANÇAR` → para e apresenta ao utilizador os motivos e as alternativas. Não continues sem resposta explícita.
-- Caso contrário, incorpora os cortes e a alternativa mais simples na spec.
+Launch `studio:critic` with the request and the context you have. Save the result in `idea.md`.
+- `NO GO` → stop and present the reasons and the alternatives to the user. Do not continue without an explicit answer.
+- Otherwise, fold the cuts and the simpler alternative into the spec.
 
-## Fase 2 — Spec
+## Phase 2 — Spec
 
-1. Se há código existente, lança `studio:explorer` (um ou mais em paralelo, com perguntas concretas) para perceber a arquitetura relevante. Não leias tu os ficheiros.
-2. Escreve `spec.md` a partir de [templates/spec.md](templates/spec.md). Critérios de aceitação **testáveis**, âmbito do MVP explícito, o que fica de fora explícito.
-3. **Decisões.** Identifica as escolhas que mudam o produto, o custo ou o risco: arquitetura, onde vivem os dados, acesso e autenticação, âmbito, integrações, direção visual. Escreve cada uma na secção "Decisões" com opções, trade-offs, a tua recomendação e o custo de mudar depois. As recomendações têm em conta as preferências conhecidas do utilizador (fase 0). No máximo ~7; o resto vai para "Assumido".
-4. **Direção de design** (só se o projeto tem interface). Sem direção, os implementers produzem a interface por omissão, que é genérica. Segue a secção **Design** abaixo antes do gate 1.
-5. Lança `studio:critic` em modo spec sobre `spec.md`. Corrige o que for válido.
-6. **Gate 1** (exceto `--auto`): segue a secção **Gate 1 — revisão guiada** abaixo. Com `--auto`, todas as decisões ficam aceites como recomendadas.
+1. If there is existing code, launch `studio:explorer` (one or more in parallel, with concrete questions) to understand the relevant architecture. Do not read the files yourself.
+2. Write `spec.md` from [templates/spec.md](templates/spec.md). **Testable** acceptance criteria, explicit MVP scope, explicit out of scope.
+3. **Decisions.** Identify the choices that change the product, the cost or the risk: architecture, where the data lives, access and authentication, scope, integrations, visual direction. Write each one in the "Decisions" section with options, trade-offs, your recommendation and the cost of changing later. The recommendations take the user's known preferences into account (phase 0). At most ~7; the rest goes into "Assumed".
+4. **Design direction** (only if the project has an interface). Without a direction, the implementers produce the default interface, which is generic. Follow the **Design** section below before gate 1.
+5. Launch `studio:critic` in spec mode on `spec.md`. Fix what is valid.
+6. **Gate 1** (except `--auto`): follow the **Gate 1 — guided review** section below. With `--auto`, all decisions are accepted as recommended.
 
-### Gate 1 — revisão guiada
+### Gate 1 — guided review
 
-O objetivo é que o utilizador gaste o tempo nas 3 ou 4 decisões que importam, e não a ler a spec inteira.
+The goal is for the user to spend their time on the 3 or 4 decisions that matter, not reading the whole spec.
 
-1. **Apresenta, numa só mensagem:**
-   - o resumo em 5 a 8 linhas: objetivo, âmbito, fora de âmbito, stack e, se houver interface, a direção de design;
-   - uma tabela das decisões: id, a pergunta, a tua recomendação numa linha e o custo de mudar depois;
-   - o caminho do `spec.md`, para quem quiser o detalhe.
-2. **Pergunta com AskUserQuestion:** "Aprovar tudo como recomendado" (primeira opção), "Discutir decisões", "Alterar o âmbito". A opção livre fica para outros pedidos.
-3. **Discutir decisões:** pergunta quais (AskUserQuestion `multiSelect` com as decisões; com mais de 4, as 4 de maior custo de mudar depois, e as outras pela opção livre). Depois, **uma de cada vez**:
-   - explica a decisão em linguagem simples: o que muda para o utilizador, o custo, o risco e se se pode reverter;
-   - apresenta a tua recomendação com o melhor argumento **contra** ela. Uma discussão em que o agente só concorda não serve ninguém;
-   - responde às perguntas. Se o utilizador escolher outra opção, aceita-a sem insistir, a não ser que crie um risco sério; nesse caso diz qual, uma vez;
-   - atualiza a decisão (`Estado: alterada pelo utilizador → …`) e **propaga a alteração**: critérios de aceitação, âmbito, riscos e design afetados. Mostra numa lista curta o que mudou na spec.
-4. **Alterar o âmbito:** recebe o pedido, atualiza o âmbito e os critérios, e mostra o que mudou.
-5. Se uma alteração mexer na arquitetura, na stack, nos dados ou na segurança, volta a correr o `studio:critic` só sobre as partes afetadas.
-6. Repete a pergunta do passo 2 até o utilizador aprovar. Regista no `state.md` as decisões que o utilizador alterou e porquê: alimentam as preferências na retro.
+1. **Present, in a single message:**
+   - the summary in 5 to 8 lines: goal, scope, out of scope, stack and, if there is an interface, the design direction;
+   - a table of the decisions: id, the question, your recommendation in one line and the cost of changing later;
+   - the path of `spec.md`, for anyone who wants the detail.
+2. **Ask with AskUserQuestion:** "Approve everything as recommended" (first option), "Discuss decisions", "Change the scope". The free-text option is for other requests.
+3. **Discuss decisions:** ask which ones (AskUserQuestion `multiSelect` with the decisions; with more than 4, the 4 with the highest cost of changing later, and the others through the free-text option). Then, **one at a time**:
+   - explain the decision in plain language: what changes for the user, the cost, the risk and whether it can be reversed;
+   - present your recommendation with the best argument **against** it. A discussion in which the agent only agrees serves no one;
+   - answer the questions. If the user picks another option, accept it without insisting, unless it creates a serious risk; in that case say which, once;
+   - update the decision (`Status: changed by the user → …`) and **propagate the change**: affected acceptance criteria, scope, risks and design. Show in a short list what changed in the spec.
+4. **Change the scope:** take the request, update the scope and the criteria, and show what changed.
+5. If a change touches the architecture, the stack, the data or security, run `studio:critic` again on the affected parts only.
+6. Repeat the question from step 2 until the user approves. Record in `state.md` the decisions the user changed and why: they feed the preferences in the retro.
 
-### Design (projetos com interface)
+### Design (projects with an interface)
 
-O gosto do utilizador entra **aqui**, no gate 1, e não depois de a interface estar feita.
+The user's taste comes in **here**, at gate 1, and not after the interface is built.
 
-- **Usa a skill `studio:impeccable`** (incluída no plugin): o fluxo `init` escreve o `PRODUCT.md` (quem usa, em que situação, para fazer o quê), e o fluxo de trabalho novo (`shape`/new-work) escolhe o mundo visual e escreve o `DESIGN.md`, com tipografia, cor, espaçamento, componentes e tokens. As perguntas que ela faz ao utilizador fazem parte da conversa do gate 1. Com `--auto`, ela infere a partir do pedido e marca o que inferiu.
-- **Se a skill não carregar**, preenche tu a secção "Direção de design" da spec (modo, contexto de uso, tom, referências e anti-referências, densidade, restrições) e escreve um `DESIGN.md` mínimo com os tokens.
-- O resumo do gate 1 mostra a direção em 3 a 5 linhas: o modo, o tom, a tipografia e a cor de base, e uma referência. A direção visual é uma das decisões do gate 1 e pode ser discutida como as outras.
+- **Use the `studio:impeccable` skill** (included in the plugin): the `init` flow writes `PRODUCT.md` (who uses it, in what situation, to do what), and the new-work flow (`shape`/new-work) picks the visual world and writes `DESIGN.md`, with typography, color, spacing, components and tokens. The questions it asks the user are part of the gate 1 conversation. With `--auto`, it infers from the request and marks what it inferred.
+- **If the skill does not load**, fill in the spec's "Design direction" section yourself (mode, context of use, tone, references and anti-references, density, constraints) and write a minimal `DESIGN.md` with the tokens.
+- The gate 1 summary shows the direction in 3 to 5 lines: the mode, the tone, the base typography and color, and one reference. The visual direction is one of the gate 1 decisions and can be discussed like the others.
 
-## Fase 3 — Plano
+## Phase 3 — Plan
 
-Escreve `plan.md` a partir de [templates/plan.md](templates/plan.md). Cada tarefa tem: id, objetivo, ficheiros prováveis, critérios de aceitação, comando de verificação, dependências, e **tier**:
+Write `plan.md` from [templates/plan.md](templates/plan.md). Each task has: id, goal, likely files, acceptance criteria, verification command, dependencies, and **tier**:
 
-| Tier | Modelo | Quando |
+| Tier | Model | When |
 |---|---|---|
-| `haiku` | Haiku | Boilerplate, config, renomeações, docs, testes triviais |
-| `sonnet` | Sonnet (default) | Implementação normal de features e testes |
-| `opus` | Opus | Algoritmos difíceis, concorrência, segurança, migrações de dados, design de módulos centrais |
+| `haiku` | Haiku | Boilerplate, config, renames, docs, trivial tests |
+| `sonnet` | Sonnet (default) | Normal feature implementation and tests |
+| `opus` | Opus | Hard algorithms, concurrency, security, data migrations, design of core modules |
 
-Regras do plano:
-- Tarefas pequenas: idealmente < 300 linhas de diff cada.
-- Duas tarefas só correm em paralelo se não tocam nos mesmos ficheiros e nenhuma depende da outra.
-- Mais de 15 tarefas → divide em marcos; cada marco é um ciclo completo implementação → review → entrega.
-- **Interface:** marca as tarefas de UI com `UI: sim`. Num projeto novo com interface, a primeira tarefa de UI é o **sistema visual**: os tokens, a tipografia, o layout base e os componentes base a partir do `DESIGN.md`, no tier `opus`. Todas as outras tarefas de UI dependem dela e reutilizam os seus componentes, em vez de cada uma inventar o seu estilo.
+Plan rules:
+- Small tasks: ideally < 300 lines of diff each.
+- Two tasks only run in parallel if they do not touch the same files and neither depends on the other.
+- More than 15 tasks → split into milestones; each milestone is a full cycle implementation → review → delivery.
+- **Interface:** mark UI tasks with `UI: yes`. In a new project with an interface, the first UI task is the **visual system**: the tokens, the typography, the base layout and the base components from `DESIGN.md`, in tier `opus`. All other UI tasks depend on it and reuse its components, instead of each one inventing its own style.
 
-## Fase 4 — Implementação
+## Phase 4 — Implementation
 
-1. Cria a branch `studio/<slug>` a partir da branch atual.
-2. Para cada grupo de tarefas independentes, lança um `studio:implementer` por tarefa **na mesma mensagem**, com `isolation: "worktree"` e `model` igual ao tier da tarefa. O prompt leva: o texto da tarefa do plano, o caminho da spec, e o comando de verificação. Nas tarefas `UI: sim`, leva também os caminhos do `DESIGN.md` e do `PRODUCT.md`. Tarefas dependentes correm depois das suas dependências.
-3. Lê o relatório de cada implementer. `feito` → confirma tu a verificação na branch dele e integra-a em `studio/<slug>`. **Depois de integrar, remove o worktree e a branch dele** (`git worktree remove --force <caminho>` e `git branch -D <branch>`). Cada worktree pode ter o seu próprio `node_modules` ou venv, e deixá-los acumular enche o disco. **A limpeza nunca bloqueia o pipeline:** se a remoção falhar (no Windows, um processo que ficou a correr pode bloquear a pasta), regista-o em `state.md`, segue para a tarefa seguinte e tenta outra vez na fase 6. `bloqueado` → aplica as **condições de paragem**.
-4. Marca o progresso em `plan.md` e `state.md` à medida que cada tarefa fecha.
+1. Create the branch `studio/<slug>` from the current branch.
+2. For each group of independent tasks, launch one `studio:implementer` per task **in the same message**, with `isolation: "worktree"` and `model` equal to the task's tier. The prompt carries: the task text from the plan, the spec path, and the verification command. For `UI: yes` tasks, it also carries the paths of `DESIGN.md` and `PRODUCT.md`. Dependent tasks run after their dependencies.
+3. Read each implementer's report. `done` → confirm the verification on its branch yourself and integrate it into `studio/<slug>`. **After integrating, remove its worktree and branch** (`git worktree remove --force <path>` and `git branch -D <branch>`). Each worktree can have its own `node_modules` or venv, and letting them pile up fills the disk. **Cleanup never blocks the pipeline:** if the removal fails (on Windows, a process left running can lock the folder), record it in `state.md`, go on to the next task and try again in phase 6. `blocked` → apply the **stop conditions**.
+4. Mark progress in `plan.md` and `state.md` as each task closes.
 
-### Condições de paragem
+### Stop conditions
 
-- Tarefa bloqueada: 1 nova tentativa com mais contexto (resultado do explorer, erro exato). Volta a falhar → escala o tier (`haiku`→`sonnet`→`opus`). Falha em `opus` → **escala para o utilizador** com o diagnóstico.
-- No máximo 3 tentativas por tarefa no total.
-- Duas tarefas seguidas bloqueadas pelo mesmo motivo → para: o problema está na spec ou no plano, não na implementação. Revê-os antes de continuar.
+- Blocked task: 1 new attempt with more context (explorer result, exact error). Fails again → escalate the tier (`haiku`→`sonnet`→`opus`). Fails on `opus` → **escalate to the user** with the diagnosis.
+- At most 3 attempts per task in total.
+- Two tasks in a row blocked for the same reason → stop: the problem is in the spec or the plan, not in the implementation. Review them before continuing.
 
-## Fase 5 — Verificação e review
+## Phase 5 — Verification and review
 
-1. Corre `.studio/verify` em `studio/<slug>`. Vermelho → volta à fase 4 com a falha como nova tarefa.
-2. Lança `studio:reviewer` com: caminho da spec, caminho do plano, e o diff (`git diff <base>...studio/<slug>`). Grava o veredicto em `review.md`.
-3. **Interface:** se o diff toca em UI, a review inclui o **gate de design** (ver o `studio:reviewer`): o detetor do Impeccable corre sobre a app a correr, em desktop e em mobile, e os findings dele entram no veredicto. Se existir o agente `impeccable-finish-reviewer`, lança-o em paralelo com o `studio:reviewer`, com o `DESIGN.md` como contrato, e junta os findings materiais dele ao `review.md`.
-4. `ALTERAÇÕES NECESSÁRIAS` ou `REJEITADO` → cada bloqueante e importante vira uma tarefa de correção (fase 4) e depois nova review. **No máximo 2 rondas de review**; à terceira, escala para o utilizador.
-5. Os menores ficam registados em `delivery.md`, não bloqueiam.
+1. Run `.studio/verify` on `studio/<slug>`. Red → back to phase 4 with the failure as a new task.
+2. Launch `studio:reviewer` with: the spec path, the plan path, and the diff (`git diff <base>...studio/<slug>`). Save the verdict in `review.md`.
+3. **Interface:** if the diff touches UI, the review includes the **design gate** (see `studio:reviewer`): the Impeccable detector runs against the running app, on desktop and on mobile, and its findings go into the verdict. If the `impeccable-finish-reviewer` agent exists, launch it in parallel with `studio:reviewer`, with `DESIGN.md` as the contract, and add its material findings to `review.md`.
+4. `CHANGES REQUESTED` or `REJECTED` → each blocker and important finding becomes a fix task (phase 4) and then a new review. **At most 2 review rounds**; on the third, escalate to the user.
+5. The minor findings are recorded in `delivery.md` and do not block.
 
-## Fase 6 — Entrega
+## Phase 6 — Delivery
 
-1. Garante commits limpos em `studio/<slug>`, com mensagens que dizem o porquê. Confirma que não ficaram worktrees nem branches de implementers (`git worktree list`, branches `worktree-agent-*`). Remove os que já estejam integrados e corre `git worktree prune`.
-2. Escreve `delivery.md`: o que foi feito, como verificar, decisões tomadas, o que ficou de fora, menores por resolver, custo/tentativas notáveis.
-3. **Texto para pessoas:** passa a skill `studio:humanizer` sobre o `delivery.md` e sobre a documentação para pessoas que o build criou ou alterou (README, guias, ajuda na interface). O conteúdo não muda: factos, comandos, números, caminhos e nomes ficam iguais, e só a prosa é reescrita. **Nunca** a usas em `spec.md`, `plan.md`, `state.md`, `review.md`, `retro.md`, `CLAUDE.md`, lições ou preferências: são contratos entre agentes, e a precisão vale mais do que o estilo.
-4. **Gate 2** (exceto `--auto`): apresenta o resumo e pergunta ao utilizador o destino: abrir PR, merge local, ou deixar a branch como está. Nunca faças push nem merge sem esta resposta.
+1. Make sure there are clean commits on `studio/<slug>`, with messages that say why. Confirm that no implementer worktrees or branches are left (`git worktree list`, branches `worktree-agent-*`). Remove the ones already integrated and run `git worktree prune`.
+2. Write `delivery.md`: what was done, how to verify, decisions taken, what was left out, open minor findings, notable cost/attempts.
+3. **Text for people:** run the `studio:humanizer` skill over `delivery.md` and over the documentation for people that the build created or changed (README, guides, in-app help). The content does not change: facts, commands, numbers, paths and names stay the same, and only the prose is rewritten. **Never** use it on `spec.md`, `plan.md`, `state.md`, `review.md`, `retro.md`, `CLAUDE.md`, lessons or preferences: they are contracts between agents, and precision is worth more than style.
+4. **Gate 2** (except `--auto`): present the summary and ask the user for the destination: open a PR, local merge, or leave the branch as it is. Never push or merge without this answer.
 
-## Fase 7 — Retro
+## Phase 7 — Retro
 
-Segue as instruções de `/studio:retro` para este slug. É obrigatória: é assim que o sistema melhora. Com `--auto` (evals), escreve só o `retro.md` e não promove lições: tarefas de teste não ensinam o sistema.
+Follow the `/studio:retro` instructions for this slug. It is mandatory: this is how the system improves. With `--auto` (evals), write only `retro.md` and do not promote lessons: test tasks do not teach the system.
 
-## Regras finais
+## Final rules
 
-- Nunca reportes "feito" com verificação vermelha ou por correr. Se algo não foi verificado, diz isso.
-- Nunca uses credenciais de produção. Secrets nunca entram em ficheiros do repo.
-- Mantém o utilizador a par numa linha por fase concluída; o detalhe fica nos ficheiros.
+- Never report "done" with red or unrun verification. If something was not verified, say so.
+- Never use production credentials. Secrets never go into repo files.
+- Keep the user informed with one line per completed phase; the detail stays in the files.

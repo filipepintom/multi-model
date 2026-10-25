@@ -1,26 +1,26 @@
 ---
 slug: <slug>
-pedido: "<pedido original>"
-fase: 0-preparar
-modo: <rápido | completo> — <motivo da triagem>
+request: "<original request>"
+phase: 0-prepare
+mode: <fast | full> — <triage reason>
 branch: studio/<slug>
-base: <branch base>
-iniciado: <YYYY-MM-DD>
+base: <base branch>
+started: <YYYY-MM-DD>
 ---
 
-# Estado — <slug>
+# State — <slug>
 
-| Fase | Estado | Notas |
+| Phase | Status | Notes |
 |---|---|---|
-| 0 Preparar | pendente | |
-| 1 Ideia | pendente | |
-| 2 Spec (gate 1) | pendente | |
-| 3 Plano | pendente | |
-| 4 Implementação | pendente | |
-| 5 Verificação e review | pendente | |
-| 6 Entrega (gate 2) | pendente | |
-| 7 Retro | pendente | |
+| 0 Prepare | pending | |
+| 1 Idea | pending | |
+| 2 Spec (gate 1) | pending | |
+| 3 Plan | pending | |
+| 4 Implementation | pending | |
+| 5 Verification and review | pending | |
+| 6 Delivery (gate 2) | pending | |
+| 7 Retro | pending | |
 
-## Escaladas
+## Escalations
 
-<!-- data · tarefa · motivo · decisão -->
+<!-- date · task · reason · decision -->

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// SubagentStart: injeta as regras do Ponytail (skills/ponytail/SKILL.md, incluída no plugin) nos subagentes do estúdio
-// (agent_type "studio:*"). O contexto de SessionStart não chega aos subagentes, e são eles que escrevem o código.
-// Só os agentes do estúdio: os subagentes de outro trabalho na mesma sessão não são tocados.
-// Sem agent_type legível (stdin vazio ou inválido), não injeta: o hook nunca bloqueia nem atrasa um subagente.
+// SubagentStart: injects the Ponytail rules (skills/ponytail/SKILL.md, included in the plugin) into the studio subagents
+// (agent_type "studio:*"). SessionStart context does not reach subagents, and they are the ones who write the code.
+// Only the studio agents: subagents doing other work in the same session are not touched.
+// Without a readable agent_type (empty or invalid stdin), nothing is injected: the hook never blocks or delays a subagent.
 
 const fs = require('fs');
 const path = require('path');
@@ -26,7 +26,7 @@ function finish() {
       process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: rules() } }));
     }
   } catch {
-    // fail-open: sem injeção
+    // fail-open: no injection
   }
   process.exit(0);
 }

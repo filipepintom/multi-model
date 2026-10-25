@@ -17,7 +17,7 @@ Projetos com interface passam por uma etapa de **design** na spec. Com o Impecca
 
 O detetor apanha anti-padrões, não mede beleza. É a direção aprovada no gate 1 que faz a diferença estética.
 
-O **gate 1 é uma revisão guiada.** A spec tem uma secção de **Decisões**, no máximo ~7: as escolhas que mudam o produto, o custo ou o risco, cada uma com opções, trade-offs, a recomendação do agente e o custo de mudar depois. Podes aprovar tudo como recomendado, ou escolher decisões para discutir, uma a uma. Nessa discussão, o agente defende a recomendação, mas apresenta também o melhor argumento contra ela. As alterações propagam-se à spec, e as que contrariam as recomendações alimentam o [`knowledge/preferences.md`](knowledge/preferences.md). Assim, as recomendações dos projetos seguintes ficam mais próximas do que preferes, sem nunca decidirem por ti.
+O **gate 1 é uma revisão guiada.** A spec tem uma secção de **Decisões**, no máximo ~7: as escolhas que mudam o produto, o custo ou o risco, cada uma com opções, trade-offs, a recomendação do agente e o custo de mudar depois. Podes aprovar tudo como recomendado, ou escolher decisões para discutir, uma a uma. Nessa discussão, o agente defende a recomendação, mas apresenta também o melhor argumento contra ela. As alterações propagam-se à spec, e as que contrariam as recomendações alimentam as tuas preferências pessoais. Assim, as recomendações dos projetos seguintes ficam mais próximas do que preferes, sem nunca decidirem por ti.
 
 Para algo que já existe:
 
@@ -34,10 +34,11 @@ Para algo que já existe:
 | `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet na manutenibilidade), `verifier` (Sonnet; Opus para critical/high) |
 | `plugins/studio/skills/build/` | O pipeline `/studio:build` e os templates (state, spec, plan) |
 | `plugins/studio/skills/audit/` | `/studio:audit`, as rubricas das lentes (`lenses/`) e os templates. Uma lente nova é só um ficheiro novo em `lenses/` |
-| `plugins/studio/skills/retro/` | `/studio:retro`: transforma falhas em lições |
-| `plugins/studio/hooks/` | Guardrails (ver abaixo) |
+| `plugins/studio/skills/retro/` | `/studio:retro`: transforma falhas em lições pessoais e preferências |
+| `plugins/studio/skills/promote/` | `/studio:promote`: propõe lições pessoais confirmadas para as lições da equipa, num branch e PR |
+| `plugins/studio/hooks/` | Guardrails (ver abaixo) e a injeção do conhecimento no contexto |
 | `plugins/studio/.mcp.json` | Context7 (documentação atualizada de bibliotecas) |
-| `knowledge/lessons.md` | Lições entre projetos, lidas no início de cada build |
+| `plugins/studio/knowledge/lessons.md` | **Lições do plugin**, comuns à equipa e distribuídas com cada versão. Só mudam por PR |
 | `evals/` | Tarefas de referência com checks escondidos |
 
 Em cada projeto, o estúdio escreve em `docs/studio/<slug>/` (spec, plano, review, entrega, retro) e em `.studio/verify` (o comando de verificação). Se um build parar a meio, retoma a partir do `state.md`.
@@ -55,6 +56,19 @@ claude plugin install studio@studio-local
 Depois de alterar o plugin, atualiza a instalação (ou reinstala). As evals usam sempre a cópia de trabalho via `--plugin-dir`.
 
 **Corre a sessão principal em Opus**, porque é ela o orquestrador.
+
+## Conhecimento: lições do plugin e lições pessoais
+
+| | Onde | Quem escreve |
+|---|---|---|
+| **Lições do plugin** | `plugins/studio/knowledge/lessons.md`, distribuídas com o plugin | Quem mantém o plugin, por PR, a partir das candidatas do `/studio:promote` |
+| **Lições pessoais** | `<pasta de dados do plugin>/knowledge/lessons.md` (no Windows: `~/.claude/plugins/data/studio-studio-local/knowledge/`), que sobrevive às atualizações | A retro de cada pessoa |
+| **Preferências** | Na mesma pasta pessoal, `preferences.md` | A retro de cada pessoa. Nunca são partilhadas |
+| **Lições de um projeto** | O `CLAUDE.md` desse projeto | A retro |
+
+Um hook injeta tudo no contexto de `/studio:build`, `/studio:audit`, `/studio:retro` e `/studio:promote`. O agente não lê ficheiros fora do projeto, por isso não há pedidos de acesso. Em caso de conflito, a lição pessoal prevalece para essa pessoa, e a retro assinala-o. Uma lição pessoal confirmada fica marcada `(candidata)`, e o `/studio:promote` prepara um branch para a equipa a rever.
+
+A pasta pessoal é criada na primeira utilização. Para a mudar, usa `STUDIO_KNOWLEDGE_DIR`. A primeira escrita da retro nessa pasta pede autorização uma vez ("permitir sempre").
 
 ## Guardrails (hooks)
 
@@ -116,7 +130,7 @@ Estas métricas ficam na coluna `metricas` do `results.csv`. Ao contrário do pa
 
 ## Obsidian
 
-Abre `C:/Projects/multi-model` como vault para ver e curar `knowledge/`. Para um projeto, abre a pasta `docs/studio/` dele. As lições usam `[[slug]]` para ligar à origem. O agente não precisa do Obsidian: lê os ficheiros diretamente.
+Abre `C:/Projects/multi-model` como vault para ver as lições do plugin (`plugins/studio/knowledge/`); a tua pasta pessoal pode ser aberta como um segundo vault. Para um projeto, abre a pasta `docs/studio/` dele. As lições usam `[[slug]]` para ligar à origem. O agente não precisa do Obsidian: lê os ficheiros diretamente.
 
 ## Fase 2: acrescentar só quando as evals ou uma falha real o justificarem
 

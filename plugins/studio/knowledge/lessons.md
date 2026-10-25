@@ -1,6 +1,7 @@
-# Lições do estúdio
+# Lições do plugin
 
-Lições acumuladas pelas retros. Cada `/studio:build` lê a parte **Geral** e só as secções **Stack** das tecnologias do projeto.
+Lições comuns a toda a equipa, distribuídas com cada versão do plugin. O agente só as **lê**; muda-as quem mantém o plugin, por PR, normalmente a partir das candidatas que o `/studio:promote` reúne das lições pessoais.
+Cada build aplica a parte **Geral** e só as secções **Stack** das tecnologias do projeto.
 Uma linha acionável cada. Atualizar em vez de duplicar; apagar o que deixou de ser verdade.
 
 # Geral

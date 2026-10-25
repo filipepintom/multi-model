@@ -27,7 +27,7 @@ Flags:
 
 ## Fase 0 — Preparar
 
-1. **Lições:** o plugin injeta o `lessons.md` no contexto, na secção "Conhecimento do estúdio"; não o leias do disco. Aplica a parte **Geral**, e da parte **Stack** só as secções das tecnologias deste projeto.
+1. **Lições:** o plugin injeta no contexto, na secção "Conhecimento do estúdio", as lições do plugin e as lições pessoais; não as leias do disco. Aplica a parte **Geral**, e da parte **Stack** só as secções das tecnologias deste projeto. Em conflito, a lição pessoal prevalece.
 2. Lê o `CLAUDE.md` e o README do projeto.
 3. O projeto tem de ser um repositório git (sem isso não há histórico para os hotspots). Garante que `.claude/worktrees/` está no `.gitignore`.
 4. Define o slug `audit-<área>` e cria `docs/studio/<slug>/state.md` a partir de [templates/state.md](templates/state.md).

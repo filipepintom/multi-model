@@ -138,8 +138,8 @@ function runClaude(prompt, ws, agent) {
     ...(settingsFile ? ['--settings', path.resolve(settingsFile)] : []),
     // auto: um classificador aprova ações seguras sem humano; os guardrails do plugin continuam ativos.
     '--permission-mode', 'auto',
-    // O estúdio lê lições e templates fora do workspace. Só estas pastas: evals/ (checks e referências) fica inacessível.
-    '--add-dir', PLUGIN_DIR, path.join(ROOT, 'knowledge'),
+    // O estúdio lê templates e lições do plugin fora do workspace. Só esta pasta: evals/ (checks e referências) fica inacessível.
+    '--add-dir', PLUGIN_DIR,
     '--allowedTools', ...ALLOWED_TOOLS,
   ];
   const r = spawnSync('claude', args, {

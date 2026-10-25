@@ -1,6 +1,6 @@
 # Lições do plugin
 
-Lições comuns a toda a equipa, distribuídas com cada versão do plugin. O agente só as **lê**; muda-as quem mantém o plugin, por PR, normalmente a partir das candidatas que o `/studio:promote` reúne das lições pessoais.
+Lições de base, distribuídas com cada versão do plugin. O agente só as **lê**; as lições que cada utilizador ganha com a experiência ficam nas lições pessoais, gravadas automaticamente pela retro.
 Cada build aplica a parte **Geral** e só as secções **Stack** das tecnologias do projeto.
 Uma linha acionável cada. Atualizar em vez de duplicar; apagar o que deixou de ser verdade.
 

@@ -35,10 +35,9 @@ Para algo que já existe:
 | `plugins/studio/skills/build/` | O pipeline `/studio:build` e os templates (state, spec, plan) |
 | `plugins/studio/skills/audit/` | `/studio:audit`, as rubricas das lentes (`lenses/`) e os templates. Uma lente nova é só um ficheiro novo em `lenses/` |
 | `plugins/studio/skills/retro/` | `/studio:retro`: transforma falhas em lições pessoais e preferências |
-| `plugins/studio/skills/promote/` | `/studio:promote`: propõe lições pessoais confirmadas para as lições da equipa, num branch e PR |
 | `plugins/studio/hooks/` | Guardrails (ver abaixo) e a injeção do conhecimento no contexto |
 | `plugins/studio/.mcp.json` | Context7 (documentação atualizada de bibliotecas) |
-| `plugins/studio/knowledge/lessons.md` | **Lições do plugin**, comuns à equipa e distribuídas com cada versão. Só mudam por PR |
+| `plugins/studio/knowledge/lessons.md` | **Lições do plugin**: lições de base, distribuídas com cada versão |
 | `evals/` | Tarefas de referência com checks escondidos |
 
 Em cada projeto, o estúdio escreve em `docs/studio/<slug>/` (spec, plano, review, entrega, retro) e em `.studio/verify` (o comando de verificação). Se um build parar a meio, retoma a partir do `state.md`.
@@ -61,12 +60,12 @@ Depois de alterar o plugin, atualiza a instalação (ou reinstala). As evals usa
 
 | | Onde | Quem escreve |
 |---|---|---|
-| **Lições do plugin** | `plugins/studio/knowledge/lessons.md`, distribuídas com o plugin | Quem mantém o plugin, por PR, a partir das candidatas do `/studio:promote` |
-| **Lições pessoais** | `<pasta de dados do plugin>/knowledge/lessons.md` (no Windows: `~/.claude/plugins/data/studio-studio-local/knowledge/`), que sobrevive às atualizações | A retro de cada pessoa |
-| **Preferências** | Na mesma pasta pessoal, `preferences.md` | A retro de cada pessoa. Nunca são partilhadas |
-| **Lições de um projeto** | O `CLAUDE.md` desse projeto | A retro |
+| **Lições do plugin** | `plugins/studio/knowledge/lessons.md`, distribuídas com o plugin | Quem mantém o plugin |
+| **Lições pessoais** | `<pasta de dados do plugin>/knowledge/lessons.md` (no Windows: `~/.claude/plugins/data/studio-studio-local/knowledge/`), que sobrevive às atualizações | A retro, **automaticamente**, a partir da experiência de cada build |
+| **Preferências** | Na mesma pasta pessoal, `preferences.md` | A retro, automaticamente |
+| **Lições de um projeto** | O `CLAUDE.md` desse projeto | A retro, automaticamente |
 
-Um hook injeta tudo no contexto de `/studio:build`, `/studio:audit`, `/studio:retro` e `/studio:promote`. O agente não lê ficheiros fora do projeto, por isso não há pedidos de acesso. Em caso de conflito, a lição pessoal prevalece para essa pessoa, e a retro assinala-o. Uma lição pessoal confirmada fica marcada `(candidata)`, e o `/studio:promote` prepara um branch para a equipa a rever.
+Um hook injeta tudo no contexto de `/studio:build`, `/studio:audit` e `/studio:retro`. O agente não lê ficheiros fora do projeto, por isso não há pedidos de acesso. Em caso de conflito, a lição pessoal prevalece, e a retro assinala-o.
 
 A pasta pessoal é criada na primeira utilização. Para a mudar, usa `STUDIO_KNOWLEDGE_DIR`. A primeira escrita da retro nessa pasta pede autorização uma vez ("permitir sempre").
 

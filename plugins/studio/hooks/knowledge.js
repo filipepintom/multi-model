@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// UserPromptSubmit: em /studio:build, /studio:audit, /studio:retro e /studio:promote, injeta no contexto
-//   1. as lições do plugin (comuns à equipa, distribuídas com o plugin, só leitura);
+// UserPromptSubmit: em /studio:build, /studio:audit e /studio:retro, injeta no contexto
+//   1. as lições do plugin (de base, distribuídas com o plugin, só leitura);
 //   2. as lições e as preferências pessoais do utilizador (na pasta de dados persistente do plugin).
 // Assim o agente não lê ficheiros fora do projeto (não há pedidos de acesso) e não se pode esquecer de os ler.
 // A pasta pessoal é STUDIO_KNOWLEDGE_DIR, ou <CLAUDE_PLUGIN_DATA>/knowledge, ou ~/.claude/studio/knowledge.
@@ -20,8 +20,7 @@ const MAX_CHARS = 40000;
 const SEEDS = {
   'lessons.md': `# As minhas lições
 
-Lições pessoais, gravadas pela retro dos teus builds. Valem só para ti e, em caso de conflito, prevalecem sobre as lições do plugin.
-As marcadas com \`(candidata)\` são propostas para as lições da equipa: o \`/studio:promote\` reúne-as.
+Lições pessoais, gravadas automaticamente pela retro dos teus builds. Em caso de conflito, prevalecem sobre as lições do plugin.
 
 # Geral
 
@@ -49,7 +48,7 @@ process.stdin.on('end', () => {
   try {
     const data = JSON.parse(raw);
     const prompt = String(data.prompt ?? data.user_prompt ?? '');
-    if (!/^\s*\/studio:(build|audit|retro|promote)\b/.test(prompt)) process.exit(0);
+    if (!/^\s*\/studio:(build|audit|retro)\b/.test(prompt)) process.exit(0);
 
     ensurePersonal();
     // Caminho longo real: um caminho 8.3 (com ~) é tratado como suspeito e cada escrita pediria aprovação manual.
@@ -57,7 +56,7 @@ process.stdin.on('end', () => {
     let context = [
       '# Conhecimento do estúdio (injetado pelo plugin)',
       `Lições do plugin: só leitura. Lições e preferências pessoais: editáveis em ${personalDir}/ (a retro grava aí). Em conflito, a lição pessoal prevalece para este utilizador.`,
-      `## Lições do plugin (equipa)\n\n${read(PLUGIN_LESSONS)}`,
+      `## Lições do plugin\n\n${read(PLUGIN_LESSONS)}`,
       `## As tuas lições (${personalDir}/lessons.md)\n\n${read(path.join(personalDir, 'lessons.md'))}`,
       `## As tuas preferências (${personalDir}/preferences.md)\n\n${read(path.join(personalDir, 'preferences.md'))}`,
     ].join('\n\n');

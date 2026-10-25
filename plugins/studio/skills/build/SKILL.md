@@ -25,7 +25,7 @@ Flags:
 
 ## Fase 0 — Preparar
 
-1. **Lições:** o plugin injeta no contexto, na secção "Conhecimento do estúdio", as lições do plugin (comuns à equipa) e as lições pessoais deste utilizador; não as leias do disco. Aplica a parte **Geral** sempre, e da parte **Stack** só as secções das tecnologias deste projeto (num projeto novo, as da stack escolhida, depois da spec). Lições de outras stacks não condicionam este projeto. Em conflito, a lição pessoal prevalece.
+1. **Lições:** o plugin injeta no contexto, na secção "Conhecimento do estúdio", as lições do plugin (de base) e as lições pessoais deste utilizador; não as leias do disco. Aplica a parte **Geral** sempre, e da parte **Stack** só as secções das tecnologias deste projeto (num projeto novo, as da stack escolhida, depois da spec). Lições de outras stacks não condicionam este projeto. Em conflito, a lição pessoal prevalece.
 2. **Preferências:** as preferências pessoais vêm na mesma secção. São o que este utilizador escolheu em projetos anteriores (stack, alojamento, estilo visual, nível de cerimónia). Usa-as para fazer as recomendações das decisões, nunca para as tomar em silêncio.
 3. Lê o `CLAUDE.md` do projeto, se existir.
 4. Garante que o projeto é um repositório git (sem isso não há worktrees). Se não for, `git init`. Garante que `.claude/worktrees/` está no `.gitignore` do projeto: os worktrees dos implementers nunca entram em commits.

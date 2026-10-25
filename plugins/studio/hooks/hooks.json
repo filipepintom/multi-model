@@ -1,6 +1,17 @@
 {
-  "description": "Guardrails do estúdio: bloqueia comandos destrutivos, scripts remotos e secrets em ficheiros; em projetos com .studio/, bloqueia push forçado/para main e exige .studio/verify verde antes de cada commit.",
+  "description": "Guardrails do estúdio: bloqueia comandos destrutivos, scripts remotos e secrets em ficheiros; em projetos com .studio/, bloqueia push forçado/para main e exige .studio/verify verde antes de cada commit. Injeta as lições e as preferências do utilizador no contexto de /studio:build, /studio:audit e /studio:retro.",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/knowledge.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash|PowerShell",

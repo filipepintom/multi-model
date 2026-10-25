@@ -34,6 +34,8 @@ Lê, em `docs/studio/<slug>/`: `state.md` (escaladas), `plan.md` (tentativas por
 
 ## 3. Promover lições (é aqui que o sistema aprende)
 
+O conteúdo atual do `lessons.md` e do `preferences.md` já está no contexto, na secção "Conhecimento do estúdio", injetada pelo plugin. Usa-o para procurar duplicados sem voltares a ler os ficheiros. Edita-os na pasta indicada nessa secção.
+
 Para cada lição, decide onde pertence:
 
 - **Específica deste projeto** (convenções, armadilhas da codebase) → acrescenta ao `CLAUDE.md` do projeto.

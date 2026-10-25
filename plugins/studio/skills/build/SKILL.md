@@ -25,8 +25,8 @@ Flags:
 
 ## Fase 0 — Preparar
 
-1. Lê as lições acumuladas em `C:/Projects/multi-model/knowledge/lessons.md`: a parte **Geral** sempre, e da parte **Stack** só as secções das tecnologias deste projeto (num projeto novo, as da stack escolhida, depois da spec). Aplica as relevantes. Lições de outras stacks não condicionam este projeto.
-2. Lê `C:/Projects/multi-model/knowledge/preferences.md`: as preferências do utilizador observadas em projetos anteriores (stack, alojamento, estilo visual, nível de cerimónia). Usa-as para fazer as recomendações das decisões, nunca para as tomar em silêncio.
+1. **Lições:** o plugin injeta o `lessons.md` no contexto, na secção "Conhecimento do estúdio"; não o leias do disco. Aplica a parte **Geral** sempre, e da parte **Stack** só as secções das tecnologias deste projeto (num projeto novo, as da stack escolhida, depois da spec). Lições de outras stacks não condicionam este projeto. Só se o contexto não as tiver é que lês o ficheiro na pasta indicada.
+2. **Preferências:** o `preferences.md` vem na mesma secção. São as preferências do utilizador observadas em projetos anteriores (stack, alojamento, estilo visual, nível de cerimónia). Usa-as para fazer as recomendações das decisões, nunca para as tomar em silêncio.
 3. Lê o `CLAUDE.md` do projeto, se existir.
 4. Garante que o projeto é um repositório git (sem isso não há worktrees). Se não for, `git init`. Garante que `.claude/worktrees/` está no `.gitignore` do projeto: os worktrees dos implementers nunca entram em commits.
 5. Define o slug (kebab-case curto) e cria `docs/studio/<slug>/state.md` a partir de [templates/state.md](templates/state.md).

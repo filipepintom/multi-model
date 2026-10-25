@@ -1,6 +1,6 @@
 {
   "name": "studio",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Pipeline multi-modelo: construir (ideia, spec, plano, implementação, review e entrega) e auditar o que já existe (lentes independentes, verificação adversarial, backlog com evidência), com Opus a orquestrar e Sonnet/Haiku a executar.",
   "author": {
     "name": "Filipe Melo"

@@ -12,7 +12,7 @@ color: cyan
 
 1. Se existir `graphify-out/graph.json` na raiz do projeto, começa por `graphify query "<pergunta>"`. Trata arestas INFERRED/AMBIGUOUS como hipóteses e confirma no código antes de as reportar.
 2. Glob/Grep para localizar; Read só das partes relevantes.
-3. Para APIs de bibliotecas e frameworks, usa o Context7 (resolve o id da biblioteca, depois pede a doc do tópico) em vez de confiar na memória.
+3. Para APIs de bibliotecas e frameworks, usa o Context7 seguindo a skill `studio:context7-mcp` (resolve o id da biblioteca uma vez, depois uma consulta por conceito) em vez de confiar na memória.
 
 ## Formato da resposta
 

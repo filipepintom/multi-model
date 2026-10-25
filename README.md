@@ -36,7 +36,8 @@ Para algo que já existe:
 | `plugins/studio/skills/audit/` | `/studio:audit`, as rubricas das lentes (`lenses/`) e os templates. Uma lente nova é só um ficheiro novo em `lenses/` |
 | `plugins/studio/skills/retro/` | `/studio:retro`: transforma falhas em lições pessoais e preferências |
 | `plugins/studio/hooks/` | Guardrails (ver abaixo) e a injeção do conhecimento no contexto |
-| `plugins/studio/.mcp.json` | Context7 (documentação atualizada de bibliotecas) |
+| `plugins/studio/.mcp.json` | Servidor MCP do Context7 (documentação atualizada de bibliotecas) |
+| `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `context7-mcp/` | Skills de terceiros incluídas no plugin, com versão fixa em `vendor.json` e licenças em `THIRD_PARTY_NOTICES.md`. Atualizam-se com `node scripts/vendor.js` |
 | `plugins/studio/knowledge/lessons.md` | **Lições do plugin**: lições de base, distribuídas com cada versão |
 | `evals/` | Tarefas de referência com checks escondidos |
 
@@ -53,6 +54,8 @@ claude plugin install studio@studio-local
 ```
 
 Depois de alterar o plugin, atualiza a instalação (ou reinstala). As evals usam sempre a cópia de trabalho via `--plugin-dir`.
+
+**Instalar o `studio` traz tudo:** os agentes, os hooks, o Context7 e as skills do Impeccable, do Ponytail e do graphify. Na primeira utilização, o detetor do Impeccable descarrega o seu binário e o graphify instala o pacote Python `graphifyy`. Se já tinhas estas ferramentas instaladas à parte, desinstala as cópias globais (a skill e os hooks do Impeccable em `~/.claude`, o plugin `ponytail@ponytail` e a skill global do graphify) para não correrem duas vezes.
 
 **Corre a sessão principal em Opus**, porque é ela o orquestrador.
 
@@ -137,15 +140,15 @@ Lê cada skill antes de a instalar e fixa a versão. São código que corre com 
 
 | Ferramenta | Para quê | Onde liga |
 |---|---|---|
-| Ponytail (`DietrichGebert/ponytail`, plugin 5.3.2) | Menos over-building | **Adotado** (A/B de 2026-10-25, evals 012–014): **−58% de código** (2 670 → 1 134 linhas), **−43% de custo** (30,8 → 17,5 USD), −29% de tempo, 3/3 a passar nos dois grupos. Instalado a nível de utilizador; um hook leva-o aos subagentes. Entrou porque a app de finanças tinha "muito código para uma app simples". A vigiar nas retros: os testes também caíram 64%. Para reviews e auditorias continuam a usar-se o `studio:reviewer` e o `/studio:audit`, não o `ponytail-review` nem o `ponytail-audit` |
+| Ponytail (`DietrichGebert/ponytail`, plugin 5.3.2) | Menos over-building | **Adotado** (A/B de 2026-10-25, evals 012–014): **−58% de código** (2 670 → 1 134 linhas), **−43% de custo** (30,8 → 17,5 USD), −29% de tempo, 3/3 a passar nos dois grupos. **Incluído no plugin desde a 0.7.0** (só a skill); o `hooks/subagent.js` injeta-o nos subagentes do estúdio. Verificado na 013: +22 linhas contra +76 sem Ponytail, a 2,73 USD contra 5,01 USD. Entrou porque a app de finanças tinha "muito código para uma app simples". A vigiar nas retros: os testes também caíram 64%. Para reviews e auditorias continuam a usar-se o `studio:reviewer` e o `/studio:audit`, não o `ponytail-review` nem o `ponytail-audit` |
 | addyosmani/agent-skills | Adaptar práticas ao pipeline (não correr em paralelo) | build |
 | thermo-nuclear review (só a skill, sem o pstack) | Review estrutural em marcos | reviewer, ocasional |
-| Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; detetor determinístico sem LLM | **Integrado na 0.4.0**: direção de design na spec, sistema visual como primeira tarefa de UI, gate de design na review. Entrou porque a interface da app de finanças saiu esteticamente fraca. **Desligar a telemetria** (`impeccable telemetry off`) |
+| Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; detetor determinístico sem LLM | **Integrado na 0.4.0; incluído no plugin desde a 0.7.0, com a telemetria desligada nos hooks**: direção de design na spec, sistema visual como primeira tarefa de UI, gate de design na review. Entrou porque a interface da app de finanças saiu esteticamente fraca. **Desligar a telemetria** (`impeccable telemetry off`) |
 | Emil Kowalski (`emil-design-eng`) | Motion e polish de UI | implementer de frontend. Só se o motion importar, e nunca com o Impeccable em simultâneo para a parte visual |
 | 21st.dev Magic MCP | Componentes React/Tailwind | implementer de frontend |
 | Humanizer (`blader/humanizer`) | Prosa que não soa a IA, sem mudar o conteúdo | **Já instalado.** Na entrega, para README, `delivery.md` e documentação para utilizadores. Nunca em specs nem planos: são contratos e a precisão vale mais do que o estilo |
 | Strix | Pentest dinâmico contra staging | CI / entrega |
-| graphify | Mapa de codebases grandes | explorer, reviewer (já suportado se existir `graphify-out/`) |
+| graphify | Mapa de codebases grandes | **Incluído no plugin desde a 0.7.0**, só por invocação (`/studio:graphify`). O explorer, o reviewer e o auditor usam-no quando existe `graphify-out/` |
 | Playwright / Chrome DevTools MCP | Verificação de UI no browser | reviewer |
 
 ### Avaliadas e rejeitadas

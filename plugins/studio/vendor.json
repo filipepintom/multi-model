@@ -12,5 +12,19 @@
     "version": "5.3.2",
     "updated": "2026-10-25",
     "notes": "Só a skill. A injeção nos subagentes do estúdio é feita por hooks/subagent.js."
+  },
+  "graphify": {
+    "source": "https://github.com/safishamsi/graphify",
+    "license": "MIT OR Apache-2.0",
+    "version": "0.9.11",
+    "updated": "2026-10-25",
+    "notes": "Alterado: disable-model-invocation (só /studio:graphify). Na primeira utilização instala o pacote Python graphifyy."
+  },
+  "context7": {
+    "source": "https://github.com/upstash/context7 (skills/context7-mcp)",
+    "license": "MIT",
+    "version": "master",
+    "updated": "2026-10-25",
+    "notes": "Só a skill de uso do servidor MCP remoto declarado em .mcp.json; a CLI ctx7 (Node >= 22.13) não é usada."
   }
 }

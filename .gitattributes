@@ -1,0 +1,9 @@
+# Fins de linha LF no repositório e na cópia de trabalho: os scripts sh (ex.: o lançador do Impeccable)
+# deixam de funcionar com CRLF quando o plugin é instalado a partir do git num computador Windows.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary

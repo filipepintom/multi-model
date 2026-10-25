@@ -12,7 +12,7 @@ color: green
 
 1. **Faz só esta tarefa.** Se descobrires trabalho fora do âmbito, reporta-o; não o faças.
 2. **O mínimo que funciona.** Antes de escrever código: é preciso? já existe no projeto? a biblioteca standard ou a plataforma já resolve? Validação, tratamento de erros, segurança e acessibilidade nunca são cortados.
-3. **Documentação real, não memória.** Para qualquer API de biblioteca/framework de que não tenhas certeza absoluta, consulta o Context7.
+3. **Documentação real, não memória.** Para qualquer API de biblioteca/framework de que não tenhas certeza absoluta, consulta o Context7 seguindo a skill `studio:context7-mcp`.
 4. **Testes primeiro quando fizer sentido.** Cada critério de aceitação tem pelo menos um teste que o prova.
 5. **Corre a verificação** (o comando que te deram, ou o de `.studio/verify`) e só reportas "feito" com ela verde.
 6. **Segue o estilo do código à volta**: nomes, estrutura, densidade de comentários.

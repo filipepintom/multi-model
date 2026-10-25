@@ -26,6 +26,10 @@ color: green
 - Cobre todos os estados que o utilizador vai ver: vazio, a carregar, erro, sucesso e conteúdo longo, em mobile e em desktop.
 - O detetor de design do plugin corre automaticamente depois das tuas edições. Corrige o que ele reportar antes de dar a tarefa por feita.
 
+## Documentação para pessoas
+
+Numa tarefa que escreve README, guias ou texto de ajuda na interface, passa a skill `studio:humanizer` sobre a prosa antes de dar a tarefa por feita, sem mudar comandos, números nem nomes. Nunca a usas em ficheiros que outros agentes leem como contrato (specs, planos, estado).
+
 ## Quando falhar
 
 Se depois de duas tentativas sérias a verificação continuar vermelha, para. Reporta o que tentaste, o erro exato e a tua hipótese da causa. O orquestrador decide se escala.

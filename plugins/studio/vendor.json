@@ -26,5 +26,12 @@
     "version": "master",
     "updated": "2026-10-25",
     "notes": "Só a skill de uso do servidor MCP remoto declarado em .mcp.json; a CLI ctx7 (Node >= 22.13) não é usada."
+  },
+  "humanizer": {
+    "source": "https://github.com/blader/humanizer",
+    "license": "MIT",
+    "version": "3.0.0",
+    "updated": "2026-10-25",
+    "notes": "Só a skill. Usada na entrega (README, delivery.md, docs para pessoas) e no report.md da auditoria; nunca em specs, planos ou outros contratos entre agentes."
   }
 }

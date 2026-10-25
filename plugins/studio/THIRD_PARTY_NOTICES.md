@@ -7,6 +7,7 @@ O plugin `studio` inclui as skills seguintes, sem modificações salvo indicaç�
 | Impeccable | `skills/impeccable/` | https://github.com/pbakaus/impeccable | Apache-2.0 |
 | Ponytail (só a skill) | `skills/ponytail/` | https://github.com/DietrichGebert/ponytail | MIT (ver `skills/ponytail/LICENSE`) |
 | graphify | `skills/graphify/` | https://github.com/safishamsi/graphify | MIT ou Apache-2.0 |
+| Humanizer (só a skill) | `skills/humanizer/` | https://github.com/blader/humanizer | MIT (ver `skills/humanizer/LICENSE`) |
 | Context7, skill de uso do MCP | `skills/context7-mcp/` | https://github.com/upstash/context7 | MIT (ver `skills/context7-mcp/LICENSE`) |
 
 O **servidor do Context7** não é copiado: é um servidor MCP remoto (`https://mcp.context7.com/mcp`) declarado em `.mcp.json`. Funciona sem chave, com limites de uso. Segundo a skill, só envia o nome da biblioteca e o texto da pergunta, nunca código. A CLI `ctx7` (que exige Node 22.13 ou mais recente) não é usada.

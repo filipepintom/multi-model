@@ -103,7 +103,7 @@ Para cada item do backlog define:
 
 Escreve:
 - `findings.json`: os itens do backlog e os refutados, no formato abaixo. Os "também observados" não entram;
-- `report.md`, a partir de [templates/report.md](templates/report.md).
+- `report.md`, a partir de [templates/report.md](templates/report.md). Passa a skill `studio:humanizer` só pela prosa do `report.md` (o resumo e as explicações). As localizações, a evidência, os números e o `findings.json` não mudam.
 
 ### Formato de `findings.json`
 

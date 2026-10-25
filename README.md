@@ -37,7 +37,7 @@ Para algo que já existe:
 | `plugins/studio/skills/retro/` | `/studio:retro`: transforma falhas em lições pessoais e preferências |
 | `plugins/studio/hooks/` | Guardrails (ver abaixo) e a injeção do conhecimento no contexto |
 | `plugins/studio/.mcp.json` | Servidor MCP do Context7 (documentação atualizada de bibliotecas) |
-| `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `context7-mcp/` | Skills de terceiros incluídas no plugin, com versão fixa em `vendor.json` e licenças em `THIRD_PARTY_NOTICES.md`. Atualizam-se com `node scripts/vendor.js` |
+| `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `context7-mcp/`, `humanizer/` | Skills de terceiros incluídas no plugin, com versão fixa em `vendor.json` e licenças em `THIRD_PARTY_NOTICES.md`. Atualizam-se com `node scripts/vendor.js` |
 | `plugins/studio/knowledge/lessons.md` | **Lições do plugin**: lições de base, distribuídas com cada versão |
 | `evals/` | Tarefas de referência com checks escondidos |
 
@@ -55,7 +55,7 @@ claude plugin install studio@studio-local
 
 Depois de alterar o plugin, atualiza a instalação (ou reinstala). As evals usam sempre a cópia de trabalho via `--plugin-dir`.
 
-**Instalar o `studio` traz tudo:** os agentes, os hooks, o Context7 e as skills do Impeccable, do Ponytail e do graphify. Na primeira utilização, o detetor do Impeccable descarrega o seu binário e o graphify instala o pacote Python `graphifyy`. Se já tinhas estas ferramentas instaladas à parte, desinstala as cópias globais (a skill e os hooks do Impeccable em `~/.claude`, o plugin `ponytail@ponytail` e a skill global do graphify) para não correrem duas vezes.
+**Instalar o `studio` traz tudo:** os agentes, os hooks, o Context7 e as skills do Impeccable, do Ponytail, do graphify e do Humanizer. Na primeira utilização, o detetor do Impeccable descarrega o seu binário e o graphify instala o pacote Python `graphifyy`. Se já tinhas estas ferramentas instaladas à parte, desinstala as cópias globais (a skill e os hooks do Impeccable em `~/.claude`, o plugin `ponytail@ponytail` e a skill global do graphify) para não correrem duas vezes.
 
 **Corre a sessão principal em Opus**, porque é ela o orquestrador.
 
@@ -146,7 +146,7 @@ Lê cada skill antes de a instalar e fixa a versão. São código que corre com 
 | Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; detetor determinístico sem LLM | **Integrado na 0.4.0; incluído no plugin desde a 0.7.0, com a telemetria desligada nos hooks**: direção de design na spec, sistema visual como primeira tarefa de UI, gate de design na review. Entrou porque a interface da app de finanças saiu esteticamente fraca. **Desligar a telemetria** (`impeccable telemetry off`) |
 | Emil Kowalski (`emil-design-eng`) | Motion e polish de UI | implementer de frontend. Só se o motion importar, e nunca com o Impeccable em simultâneo para a parte visual |
 | 21st.dev Magic MCP | Componentes React/Tailwind | implementer de frontend |
-| Humanizer (`blader/humanizer`) | Prosa que não soa a IA, sem mudar o conteúdo | **Já instalado.** Na entrega, para README, `delivery.md` e documentação para utilizadores. Nunca em specs nem planos: são contratos e a precisão vale mais do que o estilo |
+| Humanizer (`blader/humanizer`, 3.0.0) | Prosa que não soa a IA, sem mudar o conteúdo | **Incluído no plugin desde a 0.7.1.** Corre na entrega (`delivery.md`, README, docs para pessoas), no `report.md` da auditoria e nas tarefas de documentação dos implementers. Nunca em specs, planos, estado, review, retro, lições ou preferências |
 | Strix | Pentest dinâmico contra staging | CI / entrega |
 | graphify | Mapa de codebases grandes | **Incluído no plugin desde a 0.7.0**, só por invocação (`/studio:graphify`). O explorer, o reviewer e o auditor usam-no quando existe `graphify-out/` |
 | Playwright / Chrome DevTools MCP | Verificação de UI no browser | reviewer |

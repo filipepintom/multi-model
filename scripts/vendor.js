@@ -4,6 +4,7 @@
 //   node scripts/vendor.js impeccable <pasta-da-skill-impeccable>
 //   node scripts/vendor.js ponytail   <pasta-do-plugin-ponytail>
 //   node scripts/vendor.js graphify   <pasta-da-skill-graphify>
+//   node scripts/vendor.js humanizer  <pasta-da-skill-humanizer>
 //   node scripts/vendor.js context7   <pasta com SKILL.md (skills/context7-mcp) e LICENSE do repo upstash/context7>
 //
 // Lê o código novo antes de atualizar: estas skills correm com as permissões de quem usa o plugin.
@@ -19,7 +20,7 @@ const MANIFEST = path.join(ROOT, 'plugins', 'studio', 'vendor.json');
 
 const [name, source] = process.argv.slice(2);
 if (!name || !source) {
-  console.error('Uso: node scripts/vendor.js <impeccable|ponytail|graphify|context7> <pasta-de-origem>');
+  console.error('Uso: node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <pasta-de-origem>');
   process.exit(1);
 }
 
@@ -72,6 +73,20 @@ if (name === 'impeccable') {
     version: 'master',
     updated: today,
     notes: 'Só a skill de uso do servidor MCP remoto declarado em .mcp.json; a CLI ctx7 (Node >= 22.13) não é usada.',
+  };
+} else if (name === 'humanizer') {
+  const dest = path.join(SKILLS, 'humanizer');
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(dest, { recursive: true });
+  fs.copyFileSync(path.join(source, 'SKILL.md'), path.join(dest, 'SKILL.md'));
+  fs.copyFileSync(path.join(source, 'LICENSE'), path.join(dest, 'LICENSE'));
+  const m = /version:\s*"?([\d.]+)"?/.exec(fs.readFileSync(path.join(dest, 'SKILL.md'), 'utf8'));
+  manifest.humanizer = {
+    source: 'https://github.com/blader/humanizer',
+    license: 'MIT',
+    version: m ? m[1] : undefined,
+    updated: today,
+    notes: 'Só a skill. Usada na entrega (README, delivery.md, docs para pessoas) e no report.md da auditoria; nunca em specs, planos ou outros contratos entre agentes.',
   };
 } else if (name === 'graphify') {
   const dest = path.join(SKILLS, 'graphify');

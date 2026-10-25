@@ -129,7 +129,8 @@ Regras do plano:
 
 1. Garante commits limpos em `studio/<slug>`, com mensagens que dizem o porquê. Confirma que não ficaram worktrees nem branches de implementers (`git worktree list`, branches `worktree-agent-*`). Remove os que já estejam integrados e corre `git worktree prune`.
 2. Escreve `delivery.md`: o que foi feito, como verificar, decisões tomadas, o que ficou de fora, menores por resolver, custo/tentativas notáveis.
-3. **Gate 2** (exceto `--auto`): apresenta o resumo e pergunta ao utilizador o destino: abrir PR, merge local, ou deixar a branch como está. Nunca faças push nem merge sem esta resposta.
+3. **Texto para pessoas:** passa a skill `studio:humanizer` sobre o `delivery.md` e sobre a documentação para pessoas que o build criou ou alterou (README, guias, ajuda na interface). O conteúdo não muda: factos, comandos, números, caminhos e nomes ficam iguais, e só a prosa é reescrita. **Nunca** a usas em `spec.md`, `plan.md`, `state.md`, `review.md`, `retro.md`, `CLAUDE.md`, lições ou preferências: são contratos entre agentes, e a precisão vale mais do que o estilo.
+4. **Gate 2** (exceto `--auto`): apresenta o resumo e pergunta ao utilizador o destino: abrir PR, merge local, ou deixar a branch como está. Nunca faças push nem merge sem esta resposta.
 
 ## Fase 7 — Retro
 

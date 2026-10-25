@@ -1,91 +1,151 @@
-# Estúdio multi-modelo
+# Studio: a multi-model build and audit pipeline for Claude Code
 
-Um plugin do Claude Code (`studio`) que leva uma ideia até à entrega: o Opus orquestra, e o Sonnet e o Haiku executam. Há dois gates humanos, guardrails determinísticos e evals para medir se cada mudança ajuda.
-
-```
-/studio:build "Plataforma de reservas de salas com login Microsoft"
-```
-
-Ideia (critic) → Spec (**gate 1**) → Plano com tiers → Implementação paralela em worktrees → Verificação + review independente → Entrega (**gate 2**) → Retro
-
-Tarefas pequenas e sem risco seguem o **modo rápido**: sem critic, sem plano separado e com a review em Sonnet. A triagem é feita na fase 0.
-
-Projetos com interface passam por uma etapa de **design** na spec. Com o Impeccable instalado, o `PRODUCT.md` e o `DESIGN.md` são criados antes do gate 1, onde aprovas a direção visual. Depois disso:
-- o sistema visual é a primeira tarefa de UI, em Opus;
-- os implementers seguem o `DESIGN.md`;
-- a review corre o detetor sobre a app a correr, em desktop e em mobile.
-
-O detetor apanha anti-padrões, não mede beleza. É a direção aprovada no gate 1 que faz a diferença estética.
-
-O **gate 1 é uma revisão guiada.** A spec tem uma secção de **Decisões**, no máximo ~7: as escolhas que mudam o produto, o custo ou o risco, cada uma com opções, trade-offs, a recomendação do agente e o custo de mudar depois. Podes aprovar tudo como recomendado, ou escolher decisões para discutir, uma a uma. Nessa discussão, o agente defende a recomendação, mas apresenta também o melhor argumento contra ela. As alterações propagam-se à spec, e as que contrariam as recomendações alimentam as tuas preferências pessoais. Assim, as recomendações dos projetos seguintes ficam mais próximas do que preferes, sem nunca decidirem por ti.
-
-Para algo que já existe:
+`studio` is a Claude Code plugin that takes an idea all the way to a tested delivery, and audits code that already exists. Opus orchestrates; Sonnet and Haiku do the bulk of the work. You approve twice (the spec and the delivery); deterministic guardrails and independent reviews cover the rest.
 
 ```
-/studio:audit "módulo de pagamentos"
+/studio:build "Room booking platform with Microsoft login"
+/studio:audit "payments module"
 ```
 
-Âmbito → Mapa → Baseline objetivo → Lentes em paralelo (correção, segurança, manutenibilidade) → Verificação adversarial → Backlog com no máximo 15 itens (**gate**) → cada item escolhido segue para o `/studio:build`, a começar por um teste que reproduz o problema. A auditoria nunca altera código.
+## Install
 
-## Estrutura
+### Prerequisites
 
-| Caminho | O que é |
-|---|---|
-| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet na manutenibilidade), `verifier` (Sonnet; Opus para critical/high) |
-| `plugins/studio/skills/build/` | O pipeline `/studio:build` e os templates (state, spec, plan) |
-| `plugins/studio/skills/audit/` | `/studio:audit`, as rubricas das lentes (`lenses/`) e os templates. Uma lente nova é só um ficheiro novo em `lenses/` |
-| `plugins/studio/skills/retro/` | `/studio:retro`: transforma falhas em lições pessoais e preferências |
-| `plugins/studio/hooks/` | Guardrails (ver abaixo) e a injeção do conhecimento no contexto |
-| `plugins/studio/.mcp.json` | Servidor MCP do Context7 (documentação atualizada de bibliotecas) |
-| `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `context7-mcp/`, `humanizer/` | Skills de terceiros incluídas no plugin, com versão fixa em `vendor.json` e licenças em `THIRD_PARTY_NOTICES.md`. Atualizam-se com `node scripts/vendor.js` |
-| `plugins/studio/knowledge/lessons.md` | **Lições do plugin**: lições de base, distribuídas com cada versão |
-| `evals/` | Tarefas de referência com checks escondidos |
-
-Em cada projeto, o estúdio escreve em `docs/studio/<slug>/` (spec, plano, review, entrega, retro) e em `.studio/verify` (o comando de verificação). Se um build parar a meio, retoma a partir do `state.md`.
-
-## Instalar
-
-```bash
-claude plugin marketplace add C:/Projects/multi-model
-```
-
-```bash
-claude plugin install studio@studio-local
-```
-
-Depois de alterar o plugin, atualiza a instalação (ou reinstala). As evals usam sempre a cópia de trabalho via `--plugin-dir`.
-
-**Instalar o `studio` traz tudo:** os agentes, os hooks, o Context7 e as skills do Impeccable, do Ponytail, do graphify e do Humanizer. Na primeira utilização, o detetor do Impeccable descarrega o seu binário e o graphify instala o pacote Python `graphifyy`. Se já tinhas estas ferramentas instaladas à parte, desinstala as cópias globais (a skill e os hooks do Impeccable em `~/.claude`, o plugin `ponytail@ponytail` e a skill global do graphify) para não correrem duas vezes.
-
-**Corre a sessão principal em Opus**, porque é ela o orquestrador.
-
-## Conhecimento: lições do plugin e lições pessoais
-
-| | Onde | Quem escreve |
+| | Required | Notes |
 |---|---|---|
-| **Lições do plugin** | `plugins/studio/knowledge/lessons.md`, distribuídas com o plugin | Quem mantém o plugin |
-| **Lições pessoais** | `<pasta de dados do plugin>/knowledge/lessons.md` (no Windows: `~/.claude/plugins/data/studio-studio-local/knowledge/`), que sobrevive às atualizações | A retro, **automaticamente**, a partir da experiência de cada build |
-| **Preferências** | Na mesma pasta pessoal, `preferences.md` | A retro, automaticamente |
-| **Lições de um projeto** | O `CLAUDE.md` desse projeto | A retro, automaticamente |
+| Claude Code | yes | CLI or desktop app, with access to Opus (the orchestrator) |
+| Node.js 18+ | yes | The plugin's hooks run on Node |
+| git | yes | Builds use branches and worktrees |
+| Python 3.10+ with uv, pipx or pip | no | Only for `/studio:graphify` |
+| Network access to `mcp.context7.com` | no | Up-to-date library docs; without it agents use their own knowledge |
 
-Um hook injeta tudo no contexto de `/studio:build`, `/studio:audit` e `/studio:retro`. O agente não lê ficheiros fora do projeto, por isso não há pedidos de acesso. Em caso de conflito, a lição pessoal prevalece, e a retro assinala-o.
+### Steps
 
-A pasta pessoal é criada na primeira utilização. Para a mudar, usa `STUDIO_KNOWLEDGE_DIR`. A primeira escrita da retro nessa pasta pede autorização uma vez ("permitir sempre").
+1. Add the marketplace (this repository) and install the plugin:
 
-## Guardrails (hooks)
+   ```bash
+   claude plugin marketplace add <git-url-of-this-repo>
+   ```
 
-Sempre ativos:
-- bloqueiam `rm -rf` / `Remove-Item -Recurse` sobre a raiz, a home ou `..`
-- bloqueiam `curl | sh` e `iwr | iex`
-- bloqueiam a escrita em `.env` e conteúdo com secrets (chaves AWS, GitHub, Anthropic, OpenAI, Slack, Google, chaves privadas)
+   ```bash
+   claude plugin install studio@studio-local
+   ```
 
-Só em projetos com `.studio/`:
-- bloqueiam push forçado e push para `main`/`master`
-- **exigem `.studio/verify` verde antes de cada commit**
+2. Open Claude Code and run the setup check:
 
-Testar o guard: `printf '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}' | node plugins/studio/hooks/guard.js` deve sair com código 2.
+   ```
+   /studio:setup
+   ```
 
-## Evals
+   It checks Node, git, Python, the design detector and Context7, finds duplicate installs, and offers to fix what it can. Every change needs your OK and can be undone: it moves files instead of deleting them, and backs up settings before editing them. Run `/studio:setup --check` to see the report without changing anything.
+
+3. In a project folder, with the main session on **Opus**, run `/studio:build "<your idea>"` or `/studio:audit "<area>"`.
+
+### What to expect on first use
+
+- The Impeccable design detector downloads its binary for your OS (about 20 MB) on its first run.
+- `/studio:graphify` installs its Python package (`graphifyy`) the first time you call it.
+- Your personal lessons folder is created on the first `/studio:build`, `/studio:audit` or `/studio:retro`. Unless you let `/studio:setup` add an allow rule, the first retro asks once before it writes there.
+
+### Update and uninstall
+
+```bash
+claude plugin marketplace update studio-local
+```
+
+```bash
+claude plugin update studio@studio-local
+```
+
+To uninstall: `claude plugin uninstall studio@studio-local`. Your personal lessons stay in the plugin data folder (see [Knowledge](#knowledge)) until you delete them.
+
+### Cost and data
+
+- **Cost:** a small task in fast mode is about 0.6–1 USD; a typical feature 2–5 USD; a greenfield app with UI 5–10 USD; an audit of ~1,000 lines about 5 USD.
+- **Data:** code goes to Anthropic, as with any Claude Code session under your organisation's plan. Context7 receives only library names and documentation queries, never code. The Impeccable detector runs locally, with telemetry turned off by the plugin's hooks.
+
+## Usage
+
+### Build: `/studio:build "<idea>"`
+
+Idea (critic) → Spec (**gate 1**) → Plan with model tiers → Parallel implementation in worktrees → Verification + independent review → Delivery (**gate 2**) → Retro
+
+- **Triage.** Small, low-risk changes take the **fast mode**: no critic, no separate plan, review on Sonnet. Anything with auth, data, concurrency or product decisions takes the full pipeline. `--fast` and `--full` force a mode.
+- **Gate 1 is a guided review.** The spec lists up to ~7 **decisions** that change the product, cost or risk. Each has options, trade-offs, a recommendation and the cost of changing it later. Approve all as recommended, or pick decisions to discuss one at a time. The agent argues for its recommendation and also gives the strongest case against it. Changes propagate through the spec, and the ones that go against a recommendation feed your personal preferences.
+- **Design.** Projects with a UI get a design step before gate 1: Impeccable writes `PRODUCT.md` and `DESIGN.md`, and you approve the visual direction. The visual system is the first UI task, implementers follow `DESIGN.md`, and the review runs the design detector on the running app at desktop and mobile sizes. The detector catches anti-patterns; it doesn't measure taste. The direction you approve at gate 1 is what makes the difference.
+- **Less code.** Ponytail's "smallest change that fully solves the task" rules are injected into every studio agent. Measured on the evals: 58% less code and 43% lower cost, at the same pass rate.
+- **Human-facing text** (`delivery.md`, READMEs, user docs) goes through Humanizer. Specs, plans and other files that agents read as contracts never do.
+- Other flags: `--skip-idea` (skip the critic's idea phase) and `--auto` (no gates, for evals only).
+
+Each project gets `docs/studio/<slug>/` (state, spec, plan, review, delivery, retro) and `.studio/verify` (its verification command). An interrupted build resumes from `state.md`.
+
+### Audit: `/studio:audit "<area>"`
+
+Scope → Map → Objective baseline (tests, lint, dependencies, hotspots) → Independent lenses in parallel (correctness, security, maintainability) → Adversarial verification → Backlog of at most 15 items (**gate**) → each chosen item goes to `/studio:build`, starting with a test that reproduces the problem.
+
+The audit never changes code. Every finding needs `file:line`, the code and a concrete failing scenario. A verifier tries to refute each one, and refuted findings never reach the backlog. To add a lens, add one file to `plugins/studio/skills/audit/lenses/`.
+
+### Other commands
+
+| Command | What it does |
+|---|---|
+| `/studio:retro [slug]` | Turns a build's failures into personal lessons and preferences. Runs automatically at the end of every build |
+| `/studio:graphify [path]` | Builds a knowledge graph of a codebase; studio agents use it whenever `graphify-out/` exists |
+| `/studio:setup [--check]` | Checks and prepares the machine |
+
+## What's inside
+
+| Path | What it is |
+|---|---|
+| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet for maintainability), `verifier` (Sonnet; Opus for critical/high) |
+| `plugins/studio/skills/build/`, `audit/`, `retro/`, `setup/` | The studio's own commands and their templates |
+| `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `humanizer/`, `context7-mcp/` | Bundled third-party skills (see [Bundled skills](#bundled-skills)) |
+| `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents, design detector |
+| `plugins/studio/knowledge/lessons.md` | Base lessons shipped with the plugin |
+| `plugins/studio/scripts/doctor.js` | The read-only machine check behind `/studio:setup` |
+| `plugins/studio/.mcp.json` | The Context7 MCP server |
+| `evals/` | Benchmark tasks with hidden checks (for maintainers) |
+| `scripts/vendor.js` | Refreshes the bundled skills (for maintainers) |
+
+## Knowledge
+
+| | Where | Written by |
+|---|---|---|
+| **Plugin lessons** | `plugins/studio/knowledge/lessons.md`, shipped with the plugin | The plugin's maintainers |
+| **Your lessons** | `~/.claude/plugins/data/studio-studio-local/knowledge/lessons.md`, which survives plugin updates | The retro, **automatically**, from each build's experience |
+| **Your preferences** | `preferences.md` in the same folder | The retro, automatically |
+| **Project lessons** | The project's `CLAUDE.md` | The retro, automatically |
+
+A hook injects all of this into `/studio:build`, `/studio:audit` and `/studio:retro`, so agents never read files outside the project and you get no access prompts. When one of your lessons contradicts a plugin lesson, yours wins, and the retro flags the conflict. Set `STUDIO_KNOWLEDGE_DIR` to use a different folder.
+
+## Guardrails
+
+Always on:
+- block `rm -rf` / `Remove-Item -Recurse` on the root, the home folder or `..`
+- block `curl | sh` and `iwr | iex`
+- block writes to `.env` and content that looks like a secret (AWS, GitHub, Anthropic, OpenAI, Slack and Google keys, private keys)
+
+In projects with a `.studio/` folder only:
+- block force pushes and pushes to `main`/`master`
+- **require `.studio/verify` to pass before every commit**
+
+## Bundled skills
+
+Pinned versions are in [`plugins/studio/vendor.json`](plugins/studio/vendor.json); licences in [`plugins/studio/THIRD_PARTY_NOTICES.md`](plugins/studio/THIRD_PARTY_NOTICES.md).
+
+| Skill | Why it's in | How studio uses it |
+|---|---|---|
+| **Impeccable** 4.7.0 | The first real build had a functional but generic UI | Design step before gate 1, visual system task, design gate in review. Detector binary downloaded on first use; telemetry off |
+| **Ponytail** 5.3.2 (skill only) | The first real build was "a simple app with a lot of code" | Injected into every `studio:*` subagent and the build orchestrator. A/B on evals 012–014: −58% code, −43% cost, 3/3 passing in both arms |
+| **graphify** 0.9.11 | Map of large codebases | Only on explicit call (`/studio:graphify`), so it doesn't take over unrelated sessions |
+| **Humanizer** 3.0.0 | Docs that don't read as AI-written | Delivery docs, READMEs, the audit's `report.md` prose |
+| **Context7** (`context7-mcp` skill) | Current library docs instead of model memory | Explorer and implementers; one ID lookup, then one query per concept |
+
+If you already had any of these installed separately, `/studio:setup` disables the extra copies with your OK, so they don't run twice.
+
+## For maintainers
+
+### Evals
 
 ```bash
 node evals/run.js --dry-run
@@ -95,70 +155,36 @@ node evals/run.js --dry-run
 node evals/run.js --label baseline
 ```
 
-Cada tarefa vive em `evals/tasks/<id>/` e tem:
+Each task lives in `evals/tasks/<id>/`: `task.md` (the request), `fixture/` (starting code), `check.js` (hidden check, copied in only after the agent finishes), `reference/` (a correct solution that validates the check) and optionally `command` and `flags`. `--dry-run` checks every check both ways: it must fail on the fixture and pass with the reference. The agent under test can only reach the plugin folder, never `evals/`.
 
-| Ficheiro | Para quê |
+Results go to `evals/results.csv`: pass/fail, cost, wall-clock time, turns, model, studio version, plus metrics such as lines of code added, test lines and dependencies, and, for audits, recall and false positives on decoys.
+
+| Size | Tasks |
 |---|---|
-| `task.md` | O pedido, escrito como um ticket ou uma ideia real |
-| `fixture/` | O código inicial (opcional) |
-| `check.js` | O check escondido, só copiado depois do agente terminar |
-| `reference/` | Uma solução correta, usada só para validar o check |
-| `flags` | Flags extra do `/studio:build` (opcional). Por omissão é `--skip-idea`; com o ficheiro vazio, a fase de ideia corre |
+| Small | 001 slugify, 002 cart discount, 003 users 404, 004 signup validation, 005 CSV parser regression |
+| Medium | 006 auth + pagination, 007 todo CLI, 008 CSV ETL, 009 search UI states, 010 schema migration, 011 rates integration |
+| Large | 012 notes CRUD app, 013 error-handling refactor |
+| Greenfield (idea phase on) | 014 expense split, 015 habit streaks |
+| Audit | 016 Node shop API, 017 Python expenses app (8 planted issues + 4 decoys each) |
+| Single agent | 018 verifier vs 4 false and 2 real findings |
 
-O `--dry-run` valida cada check nos dois sentidos: tem de falhar no fixture e passar com a referência. O agente em teste só tem acesso ao plugin e a `knowledge/`, por isso `evals/` (checks e referências) fica-lhe inacessível.
+**Rule:** before adding a skill, changing a model or editing a prompt, commit, run the relevant evals with `--label` before and after, and compare. `--settings <file>` and `--extra-plugin <dir>` support A/B tests of plugins; `--stats <workspace>` measures code size.
 
-Os resultados (passou, custo, duração, turnos, modelo, versão do estúdio) vão para `evals/results.csv`.
+### Updating bundled skills
 
-**Regra:** antes de adicionar uma skill, mudar um modelo ou mexer num prompt, corre as evals com `--label` antes e depois, e compara. Faz commit do estúdio antes, para que a versão fique registada.
+Read the new upstream code first, then run `node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <source-folder>`, bump the version in `plugins/studio/.claude-plugin/plugin.json`, run the evals, and commit.
 
-**A mistura importa.** As evals têm de ter a mesma distribuição daquilo que queres que o estúdio construa. Se forem todas da mesma stack, vais otimizar para essa stack sem dares por isso.
+### Tool decisions
 
-| Complexidade | Tarefas |
-|---|---|
-| Pequena | 001 slugify, 002 desconto no carrinho, 003 404 em utilizadores, 004 validação de registo, 005 regressão do parser CSV |
-| Média | 006 autenticação e paginação, 007 CLI de tarefas, 008 ETL de CSV, 009 estados de UI de pesquisa, 010 migração de esquema, 011 integração de câmbios |
-| Grande | 012 app de notas CRUD, 013 refactor de error handling |
-| Greenfield (com fase de ideia) | 014 dividir despesas, 015 streaks de hábitos |
-| Auditoria (`command` = `/studio:audit`) | 016 API de loja em Node, 017 app de despesas em Python |
-| Agentes isolados (`command` = `agent:<nome>`) | 018 o verificador perante 4 findings falsos e 2 reais (sobre o fixture da 016) |
+New tools go in only when a real failure or an eval justifies them.
 
-As evals de auditoria plantam 8 problemas reais (alguns óbvios, outros só visíveis atravessando ficheiros) e 4 **decoys**: código que parece suspeito mas está correto. A biblioteca [`evals/lib/audit-check.js`](evals/lib/audit-check.js) mede:
-- o **recall**, ou quantos dos problemas plantados foram reportados (o mínimo para passar é 75%);
-- os **falsos positivos em decoys** (no máximo 1);
-- os **outros** findings, que não batem com nada conhecido e são registados mas não penalizados;
-- que a auditoria **não alterou código**.
-
-Estas métricas ficam na coluna `metricas` do `results.csv`. Ao contrário do passou/falhou dos builds, não saturam facilmente.
-
-## Obsidian
-
-Abre `C:/Projects/multi-model` como vault para ver as lições do plugin (`plugins/studio/knowledge/`); a tua pasta pessoal pode ser aberta como um segundo vault. Para um projeto, abre a pasta `docs/studio/` dele. As lições usam `[[slug]]` para ligar à origem. O agente não precisa do Obsidian: lê os ficheiros diretamente.
-
-## Fase 2: acrescentar só quando as evals ou uma falha real o justificarem
-
-Lê cada skill antes de a instalar e fixa a versão. São código que corre com as tuas permissões.
-
-| Ferramenta | Para quê | Onde liga |
+| Tool | Status | Reason |
 |---|---|---|
-| Ponytail (`DietrichGebert/ponytail`, plugin 5.3.2) | Menos over-building | **Adotado** (A/B de 2026-10-25, evals 012–014): **−58% de código** (2 670 → 1 134 linhas), **−43% de custo** (30,8 → 17,5 USD), −29% de tempo, 3/3 a passar nos dois grupos. **Incluído no plugin desde a 0.7.0** (só a skill); o `hooks/subagent.js` injeta-o nos subagentes do estúdio. Verificado na 013: +22 linhas contra +76 sem Ponytail, a 2,73 USD contra 5,01 USD. Entrou porque a app de finanças tinha "muito código para uma app simples". A vigiar nas retros: os testes também caíram 64%. Para reviews e auditorias continuam a usar-se o `studio:reviewer` e o `/studio:audit`, não o `ponytail-review` nem o `ponytail-audit` |
-| addyosmani/agent-skills | Adaptar práticas ao pipeline (não correr em paralelo) | build |
-| thermo-nuclear review (só a skill, sem o pstack) | Review estrutural em marcos | reviewer, ocasional |
-| Impeccable (`pbakaus/impeccable`) | Design de UI sem cara de template; detetor determinístico sem LLM | **Integrado na 0.4.0; incluído no plugin desde a 0.7.0, com a telemetria desligada nos hooks**: direção de design na spec, sistema visual como primeira tarefa de UI, gate de design na review. Entrou porque a interface da app de finanças saiu esteticamente fraca. **Desligar a telemetria** (`impeccable telemetry off`) |
-| Emil Kowalski (`emil-design-eng`) | Motion e polish de UI | implementer de frontend. Só se o motion importar, e nunca com o Impeccable em simultâneo para a parte visual |
-| 21st.dev Magic MCP | Componentes React/Tailwind | implementer de frontend |
-| Humanizer (`blader/humanizer`, 3.0.0) | Prosa que não soa a IA, sem mudar o conteúdo | **Incluído no plugin desde a 0.7.1.** Corre na entrega (`delivery.md`, README, docs para pessoas), no `report.md` da auditoria e nas tarefas de documentação dos implementers. Nunca em specs, planos, estado, review, retro, lições ou preferências |
-| Strix | Pentest dinâmico contra staging | CI / entrega |
-| graphify | Mapa de codebases grandes | **Incluído no plugin desde a 0.7.0**, só por invocação (`/studio:graphify`). O explorer, o reviewer e o auditor usam-no quando existe `graphify-out/` |
-| Playwright / Chrome DevTools MCP | Verificação de UI no browser | reviewer |
-
-### Avaliadas e rejeitadas
-
-Ficam aqui para não voltarem a ser avaliadas do zero. Só se reabrem se o motivo deixar de valer.
-
-| Ferramenta | Motivo |
-|---|---|
-| pstack (plugin completo) | O router dele compete com o orquestrador. Só se aproveita a skill thermo-nuclear |
-| Hallmark (`Nutlope/hallmark`) | Duplica o Impeccable; duas skills de design em simultâneo dão instruções contraditórias |
-| Scrapling (`D4Vinci/Scrapling`) | Sem falha de pesquisa que o justifique: o WebFetch, o Chrome DevTools MCP e o Context7 cobrem os casos. O ponto forte é contornar anti-bot (stealth, Cloudflare), um risco de termos de serviço. Reabrir só se as retros mostrarem falhas de leitura de páginas, e mesmo assim sem o modo stealth |
-| Agent-Reach (`Panniantong/Agent-Reach`) | Copia cookies das sessões do Chrome para aceder a sites com login (risco de conta e de termos de serviço) e instala-se com instruções remotas executadas pelo agente (supply chain). Não usar num computador da empresa |
-| Harness² (`google-research/harness2`) | Só Linux, Vertex AI e executores OpenCode/Codex. A ideia (melhorar o harness com evidência) já está nas evals; um `/studio:improve` só faz sentido com dezenas de builds reais e evals não saturadas |
+| Impeccable, Ponytail, graphify, Humanizer, Context7 | Bundled | See [Bundled skills](#bundled-skills) |
+| Strix (dynamic pentesting) | Waiting | For a future deploy step, against staging |
+| addyosmani/agent-skills, thermo-nuclear review, Emil Kowalski design skills, 21st.dev Magic MCP | Waiting | No failure that justifies them yet |
+| pstack (full plugin) | Rejected | Its router competes with the orchestrator |
+| Hallmark | Rejected | Duplicates Impeccable; two design skills give contradictory instructions |
+| Scrapling | Rejected | No research failures to fix; its strength is bypassing anti-bot protection, which is a terms-of-service risk |
+| Agent-Reach | Rejected | Copies browser session cookies and installs through remote instructions run by the agent |
+| Harness² | Rejected for now | Linux and Vertex AI only; its core idea (improve the harness with evidence) is already covered by the evals |

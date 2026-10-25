@@ -2,6 +2,8 @@
 
 `studio` is a Claude Code plugin that takes an idea all the way to a tested delivery, and audits code that already exists. Opus orchestrates; Sonnet and Haiku do the bulk of the work. You approve twice (the spec and the delivery); deterministic guardrails and independent reviews cover the rest.
 
+The plugin's prompts are in English. Everything you read (questions, specs, reports, delivery notes) is written in the language you use when you talk to it.
+
 ```
 /studio:build "Room booking platform with Microsoft login"
 /studio:audit "payments module"

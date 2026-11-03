@@ -29,6 +29,23 @@ function frontmatterVersion(file) {
   return m ? m[1].trim() : undefined;
 }
 
+// A skill with both a ```powershell and a ```bash fence is a mixed-dialect copy (upstream ships one variant per OS).
+// Checked on the source, before any destination is deleted.
+function assertSingleDialect(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) assertSingleDialect(p);
+    else if (entry.name === 'SKILL.md') {
+      const text = fs.readFileSync(p, 'utf8');
+      if (/```powershell/i.test(text) && /```bash/i.test(text)) {
+        console.error(`${p} has both a powershell and a bash fence: mixed-dialect skill, nothing was changed.`);
+        process.exit(1);
+      }
+    }
+  }
+}
+if (fs.existsSync(source)) assertSingleDialect(source);
+
 const manifest = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) : {};
 const today = new Date().toISOString().slice(0, 10);
 
@@ -99,7 +116,20 @@ if (name === 'impeccable') {
   if (!/^disable-model-invocation:/m.test(text)) {
     fs.writeFileSync(skill, text.replace(/^(description:.*)$/m, '$1\ndisable-model-invocation: true'));
   }
+  // Pin unpinned graphifyy installs to the vendored version, so a re-vendor keeps the pin.
   const versionFile = path.join(source, '.graphify_version');
+  if (fs.existsSync(versionFile)) {
+    const pin = fs.readFileSync(versionFile, 'utf8').trim();
+    const pinFile = (f) => {
+      const s = fs.readFileSync(f, 'utf8');
+      const r = s.split('\n').map((l) => (/(pip|uv tool) install/.test(l) && l.includes('graphifyy')
+        ? l.replace(/ --upgrade/, '').replace(/graphifyy(\[[^\]]*\])?(?![=\w[])/g, `graphifyy$1==${pin}`) : l)).join('\n');
+      if (r !== s) fs.writeFileSync(f, r);
+    };
+    pinFile(skill);
+    const refs = path.join(dest, 'references');
+    if (fs.existsSync(refs)) for (const f of fs.readdirSync(refs)) if (f.endsWith('.md')) pinFile(path.join(refs, f));
+  }
   manifest.graphify = {
     source: 'https://github.com/safishamsi/graphify',
     license: 'MIT OR Apache-2.0',

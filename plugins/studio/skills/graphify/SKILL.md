@@ -637,13 +637,19 @@ The graph is the map. Your job after the pipeline is to be the guide.
 
 ## Interpreter guard for subcommands
 
-Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`), or when `"$P" -c "import graphify"` fails:
+Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`), when it resolves inside the current project (including `graphify-out/`), which is never executed, or when `"$P" -c "import graphify"` fails:
 
 ```bash
 P=$(head -1 graphify-out/.graphify_python 2>/dev/null)
 case "$P" in /*) [ -f "$P" ] || P="" ;; *) P="" ;; esac
 N="${P##*/}"; N="${N%.exe}"
 case "$N" in python*) case "${N#python}" in *[!0-9.]*) P="" ;; esac ;; *) P="" ;; esac
+if [ -n "$P" ]; then
+    # never execute an interpreter that lives inside the project (it may ship with a cloned repo)
+    RP=$(realpath "$P" 2>/dev/null || readlink -f "$P" 2>/dev/null || echo "$P")
+    RD=$(realpath "$PWD" 2>/dev/null || readlink -f "$PWD" 2>/dev/null || echo "$PWD")
+    case "$RP" in "$RD"/*) P="" ;; esac
+fi
 if [ -n "$P" ] && ! "$P" -c "import graphify" >/dev/null 2>&1; then P=""; fi
 if [ -z "$P" ]; then
     GRAPHIFY_BIN=$(which graphify 2>/dev/null)

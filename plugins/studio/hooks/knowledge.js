@@ -3,18 +3,16 @@
 //   1. the plugin lessons (base, shipped with the plugin, read-only);
 //   2. the user's personal lessons and preferences (in the plugin's persistent data folder).
 // This way the agent does not read files outside the project (no access requests) and cannot forget to read them.
-// The personal folder is STUDIO_KNOWLEDGE_DIR, or <CLAUDE_PLUGIN_DATA>/knowledge, or ~/.claude/studio/knowledge.
+// The personal folder comes from hooks/paths.js (same rule as the doctor).
 // The first time, it creates the personal folder with empty files, so the retro only has to edit them.
 // Errors let the prompt through without context (fail-open): the hook must never block a request.
 
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..');
 const PLUGIN_LESSONS = path.join(PLUGIN_ROOT, 'knowledge', 'lessons.md');
-const PERSONAL = process.env.STUDIO_KNOWLEDGE_DIR
-  || (process.env.CLAUDE_PLUGIN_DATA ? path.join(process.env.CLAUDE_PLUGIN_DATA, 'knowledge') : path.join(os.homedir(), '.claude', 'studio', 'knowledge'));
+let PERSONAL;
 const MAX_CHARS = 40000;
 
 const SEEDS = {
@@ -50,6 +48,7 @@ process.stdin.on('end', () => {
     const prompt = String(data.prompt ?? data.user_prompt ?? '');
     if (!/^\s*\/studio:(build|audit|retro)\b/.test(prompt)) process.exit(0);
 
+    PERSONAL = require('./paths.js').knowledgeDir();
     ensurePersonal();
     // Real long path: an 8.3 path (with ~) is treated as suspicious and every write would ask for manual approval.
     const personalDir = fs.realpathSync.native(PERSONAL).replace(/\\/g, '/');

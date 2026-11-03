@@ -11,10 +11,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { knowledgeDir } = require('../hooks/paths.js');
 
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
 const HOME = os.homedir();
 const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(HOME, '.claude');
+const CONFIG_JSON_DIR = process.env.CLAUDE_CONFIG_DIR || HOME;
 const isWin = process.platform === 'win32';
 const checks = [];
 
@@ -58,13 +60,14 @@ function readJson(file) {
 // ---- Optional tools
 {
   const py = [['python', ['--version']], ['python3', ['--version']], ['py', ['-3', '--version']]]
-    .map(([c, a]) => ({ c, r: run(c, a) })).find((x) => x.r.ok && /Python 3/.test(x.r.out));
+    .map(([c, a]) => ({ c, a, r: run(c, a) })).find((x) => x.r.ok && /Python 3/.test(x.r.out));
   const v = py && version(py.r.out);
   add('optional', 'Python 3.10+ (graphify)', atLeast(v, [3, 10, 0]) ? 'ok' : 'warn', py ? py.r.out : 'not found',
-    'Only needed for /studio:graphify. Install Python 3.10+ and uv (https://docs.astral.sh/uv/) or pipx.');
-  const installer = ['uv', 'pipx', 'pip'].find((t) => run(t, ['--version']).ok);
-  add('optional', 'uv / pipx / pip (graphify)', installer ? 'ok' : 'warn', installer || 'none found',
-    'graphify installs its Python package (graphifyy) on first use with uv, pipx or pip.');
+    'Only needed for /studio:graphify. Install Python 3.10+ and uv (https://docs.astral.sh/uv/).');
+  // Same installers as skills/graphify/SKILL.md Step 1: uv, or `<python> -m pip` for the Python found above.
+  const installer = run('uv', ['--version']).ok ? 'uv' : py && run(py.c, [...py.a.slice(0, -1), '-m', 'pip', '--version']).ok ? 'pip' : null;
+  add('optional', 'uv / pip (graphify installer)', installer ? 'ok' : 'warn', installer || 'none found',
+    'graphify installs its Python package (graphifyy) on first use with uv, or with pip for the Python above. Install uv (https://docs.astral.sh/uv/); pipx alone is not used.');
 }
 {
   const launcher = path.join(PLUGIN_ROOT, 'skills', 'impeccable', 'scripts', isWin ? 'impeccable.cmd' : 'impeccable');
@@ -103,12 +106,14 @@ async function network() {
 function duplicates() {
   const settings = readJson(path.join(CLAUDE_DIR, 'settings.json')) || {};
   const dup = [];
-  for (const skill of ['impeccable', 'graphify', 'humanizer', 'ponytail']) {
+  const vendor = Object.keys(readJson(path.join(PLUGIN_ROOT, 'vendor.json')) || {});
+  for (const skill of vendor.map((k) => (k === 'context7' ? 'context7-mcp' : k))) {
     if (fs.existsSync(path.join(CLAUDE_DIR, 'skills', skill))) dup.push(`global skill ~/.claude/skills/${skill}`);
   }
   for (const [id, on] of Object.entries(settings.enabledPlugins || {})) {
-    if (on && /^(ponytail|impeccable|humanizer)@/.test(id)) dup.push(`plugin ${id}`);
+    if (on && vendor.some((k) => id.startsWith(`${k}@`))) dup.push(`plugin ${id}`);
   }
+  if ((readJson(path.join(CONFIG_JSON_DIR, '.claude.json')) || {}).mcpServers?.context7) dup.push('MCP server context7 in .claude.json (studio declares its own)');
   if (JSON.stringify(settings.hooks || {}).includes('impeccable')) dup.push('Impeccable hooks in ~/.claude/settings.json');
   add('duplicates', 'Bundled skills installed twice', dup.length ? 'warn' : 'ok', dup.length ? dup.join('; ') : 'none',
     'These run in addition to the copies bundled in studio (e.g. the detector runs twice per edit). Remove them: /studio:setup can do it with your OK.');
@@ -116,14 +121,7 @@ function duplicates() {
 
 // ---- Personal knowledge folder and write permission
 function knowledge() {
-  const dataRoot = path.join(CLAUDE_DIR, 'plugins', 'data');
-  const dirs = fs.existsSync(dataRoot) ? fs.readdirSync(dataRoot).filter((d) => /^studio-/.test(d) && d !== 'studio-inline') : [];
-  const dir = process.env.STUDIO_KNOWLEDGE_DIR || (dirs[0] ? path.join(dataRoot, dirs[0], 'knowledge') : null);
-  if (!dir) {
-    add('knowledge', 'Personal lessons folder', 'warn', 'not created yet',
-      'It is created automatically the first time you run /studio:build, /studio:audit or /studio:retro.');
-    return;
-  }
+  const dir = knowledgeDir(process.env, HOME);
   const exists = fs.existsSync(dir);
   add('knowledge', 'Personal lessons folder', exists ? 'ok' : 'warn', dir.replace(/\\/g, '/'),
     exists ? '' : 'Created automatically on the first /studio:build, /studio:audit or /studio:retro.');
@@ -141,10 +139,12 @@ function companions() {
   const has = installed && Object.keys(installed.plugins || {}).some((k) => k.startsWith('claude-security@'));
   add('optional', 'Claude Security plugin (deep security audits)', has ? 'ok' : 'warn', has ? 'installed' : 'not installed',
     '/studio:audit recommends it for deep security scans: claude plugin install claude-security@claude-plugins-official');
-  const config = readJson(path.join(HOME, '.claude.json'));
-  const rea = !!config?.mcpServers?.rea;
-  add('optional', 'REA (reverse engineering)', rea ? 'ok' : 'warn', rea ? 'registered as "rea"' : 'not registered',
-    'Only needed for /studio:reverse. Run: npx rea-agents@6.8.0 setup');
+  const config = readJson(path.join(CONFIG_JSON_DIR, '.claude.json')) || {};
+  const global = !!config.mcpServers?.rea;
+  const some = Object.values(config.projects || {}).some((p) => p && p.mcpServers && p.mcpServers.rea);
+  add('optional', 'REA (reverse engineering)', global || some ? 'ok' : 'warn',
+    global ? 'registered' : some ? 'registered for some projects' : 'not registered',
+    'Only needed for /studio:reverse. Run: npx -y rea-agents@6.8.0 doctor --client claude_code --json, then npx -y rea-agents@6.8.0 setup --client claude_code --dry-run --json (as /studio:reverse shows), then restart Claude Code after setup.');
 }
 
 function markdown() {

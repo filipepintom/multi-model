@@ -68,6 +68,7 @@ Only when the path is one or more `https://github.com/...` URLs, or several loca
 This skill needs bash (on Windows, Git Bash, which Claude Code uses for its Bash tool).
 
 ```bash
+export PYTHONSAFEPATH=1  # Python 3.11+: keep the project folder off sys.path for every call below
 # Detect the correct Python interpreter (handles uv tool, pipx, venv, system installs)
 # Interpreter inside the uv tool env (POSIX bin/, Git Bash on Windows Scripts/), if graphify imports there
 _uv_py() {
@@ -640,6 +641,7 @@ The graph is the map. Your job after the pipeline is to be the guide.
 Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`; `python3.13t` and Windows paths such as `C:\Python312\python.exe` are accepted), when the file or its folder (a venv symlink included) is inside the current project (including `graphify-out/`), which is never executed, or when `"$P" -c "import graphify"` fails (run from `/`, so a `graphify.py` in the project is not imported):
 
 ```bash
+export PYTHONSAFEPATH=1
 P=$(head -1 graphify-out/.graphify_python 2>/dev/null | tr -d '\r')
 case "$P" in /*|[A-Za-z]:[\\/]*) ;; *) P="" ;; esac
 N=$(printf %s "$P" | tr '\\' '/'); N="${N##*/}"; N="${N%.exe}"

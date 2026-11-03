@@ -111,3 +111,10 @@ test('an unavailable personal folder keeps the full header with the never-author
   assert.match(ctx, NEVER_AUTHORIZE);
   assert.match(ctx, /Personal lessons unavailable/);
 });
+
+test('a huge preferences file on build still keeps Ponytail', () => {
+  const dir = path.join(tmp, 'hugeprefs2');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'preferences.md'), 'p'.repeat(200000));
+  assert.match(runWith('/studio:build x', dir), /PONYTAIL MODE ACTIVE/);
+});

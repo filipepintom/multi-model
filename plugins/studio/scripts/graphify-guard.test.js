@@ -76,11 +76,12 @@ test('guard: a project-local venv symlinked to an outside python is rejected une
   assert.notStrictEqual(fs.readFileSync(file, 'utf8'), link);
 });
 
-test('guard: import graphify is validated outside the project (a repo graphify.py does not run)', () => {
+test('guard: import graphify is validated outside the project (a repo graphify.py does not run)', (t) => {
   const { root, dir, file } = project();
   const marker = path.join(root, 'marker');
   fs.writeFileSync(path.join(dir, 'graphify.py'), `open(${JSON.stringify(marker)}, 'w').close()\n`);
   const py = spawnSync('python3', ['-c', 'import sys;print(sys.executable)'], { encoding: 'utf8' }).stdout.trim();
+  if (!py) return t.skip('python3 not on PATH');
   fs.writeFileSync(file, py);
   spawnSync('bash', ['-c', guard], sh(dir));
   assert.ok(!fs.existsSync(marker));
@@ -111,4 +112,12 @@ test('skill and references: every python -c / -m use sets PYTHONSAFEPATH=1', () 
     }
   }
   assert.ok(n > 20);
+});
+
+test('Step 1 and the guard export PYTHONSAFEPATH=1 before the first interpreter call', () => {
+  const step1 = skill.split('### Step 1 - Ensure graphify is installed')[1].match(/```bash\n([\s\S]*?)```/)[1];
+  for (const block of [step1, guard]) {
+    const lines = block.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'));
+    assert.match(lines[0], /^export PYTHONSAFEPATH=1(\s|$)/);
+  }
 });

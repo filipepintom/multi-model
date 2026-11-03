@@ -67,7 +67,7 @@ process.stdin.on('end', () => {
       // An unwritable folder must not drop the plugin lessons.
       tail = `Personal lessons unavailable: ${PERSONAL} (${e.code || 'error'})`;
     }
-    const parts = [tail];
+    const parts = [];
     // On build, the orchestrator also follows Ponytail (the subagents get it through hooks/subagent.js).
     if (/^\s*\/studio:build\b/.test(prompt)) {
       const ponytail = path.join(PLUGIN_ROOT, 'skills', 'ponytail', 'SKILL.md');
@@ -77,10 +77,12 @@ process.stdin.on('end', () => {
     }
     const NOTE = '\n\n[truncated: consolidate the personal lessons with /studio:retro]';
     // Truncation cuts the personal lessons first; header, plugin lessons, preferences and Ponytail stay.
-    const fixed = [...head, ...parts].join('\n\n');
+    const fixed = [...head, tail, ...parts].join('\n\n');
     const room = MAX_CHARS - fixed.length - 4 - NOTE.length;
-    if (personal.length > room) personal = `${personal.slice(0, Math.max(0, room))}${NOTE}`;
-    let context = [...head, personal, ...parts].filter(Boolean).join('\n\n');
+    if (personal.length > room) personal = room >= 0 ? `${personal.slice(0, room)}${NOTE}` : '';
+    // Preferences alone too big: cut them (with the note) so Ponytail survives.
+    if (room < 0) tail = `${tail.slice(0, Math.max(0, tail.length + room))}${NOTE}`;
+    let context = [...head, personal, tail, ...parts].filter(Boolean).join('\n\n');
     // Last resort: an oversized preferences file must not blow the cap either.
     if (context.length > MAX_CHARS) context = `${context.slice(0, MAX_CHARS)}${NOTE}`;
     // Exit in the write callback so a pipe is flushed first.

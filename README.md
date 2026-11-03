@@ -205,7 +205,7 @@ New tools go in only when a real failure or an eval justifies them.
 | Tool | Status | Reason |
 |---|---|---|
 | Impeccable, Ponytail, graphify, Humanizer, Context7 | Bundled | See [Bundled skills](#bundled-skills) |
-| REA | Optional, not bundled | 49 MB and frequent releases; `/studio:reverse` uses your own install. `reverser` gets only REA's static tools; runtime tools belong to `reverser-live`, which runs only with `--runtime` and an approved run list. Neither gets `uninstall_adb_package` or `push_adb_file` |
+| REA | Optional, not bundled | 49 MB and frequent releases; `/studio:reverse` uses your own install. `reverser` gets only REA's static tools; runtime tools belong to `reverser-live`, which runs only with `--runtime` and an approved run list. Neither gets `uninstall_adb_package` or `push_adb_file`, and `reverser-live` also leaves out the raw consoles `gdb_console`, `execute_rizin_command`, `rizin_debug_command` and `cutter_command` |
 | Strix (dynamic pentesting) | Waiting | For a future deploy step, against staging |
 | addyosmani/agent-skills, thermo-nuclear review, Emil Kowalski design skills, 21st.dev Magic MCP | Waiting | No failure that justifies them yet |
 | pstack (full plugin) | Rejected | Its router competes with the orchestrator |

@@ -275,3 +275,28 @@ test('a verify command is checked by the guard rules before it runs', () => {
   assert.match(r.stderr, /\.studio\/verify/);
   assert.ok(!fs.existsSync(path.join(dir, 'ran.marker2')), 'verify must not have run');
 });
+
+test('a child shell only inherits exported or prefix assignments', () => {
+  expect('blocked', 'Bash', [
+    `X=build; bash -c 'rm -rf "$X"/*'`, `X=build && sh -c 'rm -rf "$X"/*'`, `for d in a b; do bash -c 'rm -rf "$d"/*'; done`,
+  ]);
+  expect('allowed', 'Bash', [
+    `export X=build && bash -c 'rm -rf "$X"/*'`, `declare -x X=build; bash -c 'rm -rf "$X"/*'`, `X=build bash -c 'rm -rf "$X"/*'`,
+    `X=build env bash -c 'rm -rf "$X"/*'`, 'for d in a b; do bash -c "rm -rf $d/*"; done',
+  ]);
+});
+
+test('shell options that take a value do not hide -c', () => {
+  expect('blocked', 'Bash', [
+    "bash -O extglob -c 'rm -rf /'", "bash +O extglob -c 'rm -rf /'", "bash -o pipefail -c 'rm -rf /'",
+    "bash --rcfile x -c 'rm -rf /'", "bash --init-file x -c 'rm -rf /'",
+  ]);
+});
+
+test('PowerShell valued parameters match by abbreviation and alias', () => {
+  expect('blocked', 'PowerShell', [
+    'powershell -ep Bypass -c "Remove-Item -Recurse C:\\"', 'pwsh -ExecutionP Bypass -Command "git push origin main"',
+    'pwsh -wd x -c "git push origin main"', 'pwsh -NoProfile -Config x -c "git push origin main"', 'pwsh -w hidden -c "git push origin main"',
+  ]);
+  expect('allowed', 'PowerShell', ['pwsh -File x.ps1 -c "git push origin main"', 'pwsh x.ps1 -c "git push origin main"']);
+});

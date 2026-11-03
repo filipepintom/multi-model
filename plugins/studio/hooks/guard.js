@@ -258,19 +258,37 @@ function innerScript(tokens) {
   }
   if (name === 'powershell' || name === 'pwsh') {
     const isCommand = (a) => a.length > 1 && '-command'.startsWith(a.toLowerCase());
-    const valued = /^-(ExecutionPolicy|WindowStyle|OutputFormat|InputFormat|ConfigurationName|Version|WorkingDirectory)$/i;
+    // Parameters that take a value, by full name, unambiguous prefix (2+ letters) or alias.
+    const FULL = ['executionpolicy', 'windowstyle', 'workingdirectory', 'configurationname', 'outputformat', 'inputformat', 'version'];
+    const ALIAS = ['ep', 'w', 'wd', 'config', 'o', 'of', 'i', 'if', 'v'];
+    const valued = (a) => { const n = a.slice(1).toLowerCase(); return ALIAS.includes(n) || (n.length > 1 && FULL.some((f) => f.startsWith(n))); };
+    const isFile = (a) => /^-f(i(le?)?)?$/i.test(a);
     for (let k = 0; k < args.length; k++) {
       if (isCommand(args[k])) return args.slice(k + 1).join(' ');
-      if (!args[k].startsWith('-')) return null; // a script path: what follows are its arguments
-      if (valued.test(args[k])) k++;
+      if (!args[k].startsWith('-')) {
+        // First word or the value of -File: a script path, what follows are its arguments. Otherwise assume the value of an unknown parameter.
+        if (k === 0 || isFile(args[k - 1])) return null;
+        continue;
+      }
+      if (valued(args[k])) k++;
     }
     return null;
   }
   for (let k = 0; k < args.length && /^[-+]/.test(args[k]); k++) { // flags only: after the script path, -c belongs to the script
     if (/^-[a-zA-Z]*c[a-zA-Z]*$/.test(args[k])) return args[k + 1] ?? null;
-    if (/^[-+]o$/.test(args[k])) k++;
+    if (/^([-+][oO]|--rcfile|--init-file)$/.test(args[k])) k++;
   }
   return null;
+}
+
+// What a child shell sees of the outer command's variables. A double-quoted script is expanded by the outer shell, so all of its
+// assignments count (raw text is the only way to tell: parse drops the quotes). Otherwise only exported ones and prefix assignments.
+function inherited(tokens, text, inner, outer) {
+  const all = `${outer}\n${text}`;
+  if (text.includes(`"${inner}`)) return all;
+  const exported = (all.match(/\b(?:export|declare\s+-\w*x\w*)\s+[^;&|\n]*/gi) || []).join('\n');
+  const w = tokens.findIndex((t) => SHELL_CMD.test(t));
+  return `${exported}\n${tokens.slice(0, w).filter((t) => /^\w+=/.test(t)).join(' ')}`;
 }
 
 function checkCommand(cmd, cwd, depth = 0, outer = '') {
@@ -287,7 +305,7 @@ function checkCommand(cmd, cwd, depth = 0, outer = '') {
     checkDelete(tokens, `${outer}\n${text}`);
     checkEnvWrite(tokens);
     const inner = innerScript(tokens);
-    if (inner) checkCommand(inner, dir, depth + 1, `${outer}\n${text}`);
+    if (inner) checkCommand(inner, dir, depth + 1, inherited(tokens, text, inner, outer));
     if (/^(cd|chdir|pushd|Set-Location|sl)$/i.test(tokens[0])) {
       const target = tokens.slice(1).find((t) => !t.startsWith('-'));
       if (!target) dir = os.homedir();

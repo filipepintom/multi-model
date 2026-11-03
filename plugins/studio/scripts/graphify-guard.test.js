@@ -52,3 +52,63 @@ test('guard: an interpreter inside the project is never executed and is replaced
   assert.ok(!fs.existsSync(path.join(r.dir, 'pwned')));
   assert.strictEqual(r.after, r.py);
 });
+
+const sh = (dir, extra = {}) => ({ cwd: dir, env: { PATH: '/usr/bin:/bin', ...extra } });
+function project() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gguard-'));
+  const dir = path.join(root, 'proj');
+  fs.mkdirSync(path.join(dir, 'graphify-out'), { recursive: true });
+  return { root, dir, file: path.join(dir, 'graphify-out', '.graphify_python') };
+}
+
+test('guard: a project-local venv symlinked to an outside python is rejected unexecuted', () => {
+  const { root, dir, file } = project();
+  const marker = path.join(root, 'marker');
+  const real = path.join(root, 'real-python3');
+  fs.writeFileSync(real, `#!/bin/sh\ntouch "${marker}"\n`, { mode: 0o755 });
+  fs.mkdirSync(path.join(dir, '.venv', 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.venv', 'pyvenv.cfg'), 'home = /usr/bin\n');
+  const link = path.join(dir, '.venv', 'bin', 'python3');
+  fs.symlinkSync(real, link);
+  fs.writeFileSync(file, link);
+  spawnSync('bash', ['-c', guard], sh(dir));
+  assert.ok(!fs.existsSync(marker));
+  assert.notStrictEqual(fs.readFileSync(file, 'utf8'), link);
+});
+
+test('guard: import graphify is validated outside the project (a repo graphify.py does not run)', () => {
+  const { root, dir, file } = project();
+  const marker = path.join(root, 'marker');
+  fs.writeFileSync(path.join(dir, 'graphify.py'), `open(${JSON.stringify(marker)}, 'w').close()\n`);
+  const py = spawnSync('python3', ['-c', 'import sys;print(sys.executable)'], { encoding: 'utf8' }).stdout.trim();
+  fs.writeFileSync(file, py);
+  spawnSync('bash', ['-c', guard], sh(dir));
+  assert.ok(!fs.existsSync(marker));
+});
+
+test('guard: Windows absolute paths and free-threaded names are classified as valid', () => {
+  const { dir, file } = project();
+  const lines = guard.split('\n');
+  const cut = lines.findIndex((l) => l.includes('-f "$P"'));
+  assert.ok(cut > 0, 'existence check line not found');
+  const classify = (content) => {
+    fs.writeFileSync(file, content);
+    return spawnSync('bash', ['-c', `${lines.slice(0, cut).join('\n')}\nprintf %s "$P"`], { ...sh(dir), encoding: 'utf8' }).stdout;
+  };
+  assert.strictEqual(classify('C:\\Python312\\python.exe'), 'C:\\Python312\\python.exe');
+  assert.strictEqual(classify('/usr/bin/python3.13t'), '/usr/bin/python3.13t');
+  assert.strictEqual(classify('C:\\x\\evil.exe'), '');
+  assert.strictEqual(classify('relative/python3'), '');
+});
+
+test('skill and references: every python -c / -m use sets PYTHONSAFEPATH=1', () => {
+  const dir = path.join(__dirname, '..', 'skills', 'graphify');
+  const files = [path.join(dir, 'SKILL.md'), ...fs.readdirSync(path.join(dir, 'references')).map((f) => path.join(dir, 'references', f))];
+  let n = 0;
+  for (const f of files) {
+    for (const l of fs.readFileSync(f, 'utf8').split('\n')) {
+      if (/\.graphify_python\)" -[cm]\b/.test(l)) { n++; assert.match(l, /PYTHONSAFEPATH=1 "\$\(cat/, `${path.basename(f)}: ${l}`); }
+    }
+  }
+  assert.ok(n > 20);
+});

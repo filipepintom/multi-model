@@ -117,12 +117,12 @@ echo "$(cd "INPUT_PATH" && pwd)" > graphify-out/.graphify_root
 
 If the import succeeds, print nothing and move straight to Step 2.
 
-**In every subsequent bash block, replace `python3` with `"$(cat graphify-out/.graphify_python)"` to use the correct interpreter.**
+**In every subsequent bash block, replace `python3` with `"$(cat graphify-out/.graphify_python)"` to use the correct interpreter.** The blocks set `PYTHONSAFEPATH=1` so Python 3.11+ does not put the project folder on `sys.path` (a `graphify.py` shipped in a cloned repo would otherwise run); Python 3.10 ignores it and is not covered.
 
 ### Step 2 - Detect files
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json
 from graphify.detect import detect
 from pathlib import Path
@@ -184,7 +184,7 @@ Note: Parallelizing AST + semantic saves 5-15s on large corpora. AST is determin
 For any code files detected, run AST extraction in parallel with Part B subagents:
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import sys, json
 from graphify.extract import collect_files, extract
 from pathlib import Path
@@ -210,7 +210,7 @@ else:
 **Fast path:** If detection found zero docs, papers, and images (code-only corpus), skip Part B entirely and go straight to Part C. AST handles code - there is nothing for semantic subagents to do. **First write an empty semantic file** so Part C's merge has its input (it reads `.graphify_semantic.json` unconditionally; without this a code-only run hits `FileNotFoundError`):
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json
 from pathlib import Path
 Path('graphify-out/.graphify_semantic.json').write_text(json.dumps({'nodes':[],'edges':[],'hyperedges':[],'input_tokens':0,'output_tokens':0}), encoding='utf-8')
@@ -230,7 +230,7 @@ Before dispatching subagents, print a timing estimate:
 Before dispatching any subagents, check which files already have cached extraction results:
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json
 from graphify.cache import check_semantic_cache
 from pathlib import Path
@@ -298,7 +298,7 @@ If more than half the chunks failed or are missing, stop and tell the user to re
 
 Merge all chunk files into `.graphify_semantic_new.json`. **After each Agent call completes, read the real token counts from the Agent tool result's `usage` field and write them back into the chunk JSON before merging** — the chunk JSON itself always has placeholder zeros. Then run:
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json, glob
 from pathlib import Path
 
@@ -322,7 +322,7 @@ print(f'Merged {len(chunks)} chunks: {total_in:,} in / {total_out:,} out tokens'
 
 Save new results to cache:
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json
 from graphify.cache import save_semantic_cache
 from pathlib import Path
@@ -335,7 +335,7 @@ print(f'Cached {saved} files')
 
 Merge cached + new results into `graphify-out/.graphify_semantic.json`:
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json
 from pathlib import Path
 
@@ -368,7 +368,7 @@ Clean up temp files: `rm -f graphify-out/.graphify_cached.json graphify-out/.gra
 #### Part C - Merge AST + semantic into final extraction
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import sys, json
 from pathlib import Path
 
@@ -405,7 +405,7 @@ print(f'Merged: {total} nodes, {edges} edges ({len(ast[\"nodes\"])} AST + {len(s
 
 ```bash
 mkdir -p graphify-out
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import sys, json
 from graphify.build import build_from_json
 from graphify.cluster import cluster, score_all
@@ -467,7 +467,7 @@ Replace INPUT_PATH with the actual path.
 A non-destructive diagnostic on the extraction, before labeling. It surfaces edge collapse, dangling/missing endpoints, and self-loops — the silent-corruption modes of incremental updates and AST/LLM id mismatches. Read-only; never aborts.
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json
 from pathlib import Path
 from graphify.diagnostics import diagnose_extraction, format_diagnostic_report
@@ -495,7 +495,7 @@ Read `graphify-out/.graphify_analysis.json`. For each community key, look at its
 Then regenerate the report and save the labels for the visualizer:
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import sys, json
 from graphify.build import build_from_json
 from graphify.cluster import score_all
@@ -558,7 +558,7 @@ These run only when their flag is present (`--wiki`, `--neo4j`/`--neo4j-push`, `
 ### Step 9 - Save manifest, update cost tracker, clean up, and report
 
 ```bash
-"$(cat graphify-out/.graphify_python)" -c "
+PYTHONSAFEPATH=1 "$(cat graphify-out/.graphify_python)" -c "
 import json
 from pathlib import Path
 from datetime import datetime, timezone
@@ -637,20 +637,23 @@ The graph is the map. Your job after the pipeline is to be the guide.
 
 ## Interpreter guard for subcommands
 
-Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`), when it resolves inside the current project (including `graphify-out/`), which is never executed, or when `"$P" -c "import graphify"` fails:
+Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`; `python3.13t` and Windows paths such as `C:\Python312\python.exe` are accepted), when the file or its folder (a venv symlink included) is inside the current project (including `graphify-out/`), which is never executed, or when `"$P" -c "import graphify"` fails (run from `/`, so a `graphify.py` in the project is not imported):
 
 ```bash
-P=$(head -1 graphify-out/.graphify_python 2>/dev/null)
-case "$P" in /*) [ -f "$P" ] || P="" ;; *) P="" ;; esac
-N="${P##*/}"; N="${N%.exe}"
-case "$N" in python*) case "${N#python}" in *[!0-9.]*) P="" ;; esac ;; *) P="" ;; esac
+P=$(head -1 graphify-out/.graphify_python 2>/dev/null | tr -d '\r')
+case "$P" in /*|[A-Za-z]:[\\/]*) ;; *) P="" ;; esac
+N=$(printf %s "$P" | tr '\\' '/'); N="${N##*/}"; N="${N%.exe}"
+case "$N" in python*) R="${N#python}"; case "${R%t}" in *[!0-9.]*) P="" ;; esac ;; *) P="" ;; esac
+if [ -n "$P" ] && [ ! -f "$P" ]; then P=""; fi
 if [ -n "$P" ]; then
-    # never execute an interpreter that lives inside the project (it may ship with a cloned repo)
+    # never execute an interpreter that lives inside the project, resolved or not (venvs read pyvenv.cfg and site-packages)
     RP=$(realpath "$P" 2>/dev/null || readlink -f "$P" 2>/dev/null || echo "$P")
     RD=$(realpath "$PWD" 2>/dev/null || readlink -f "$PWD" 2>/dev/null || echo "$PWD")
+    PD=$(cd "${P%/*}" 2>/dev/null && pwd -P)
     case "$RP" in "$RD"/*) P="" ;; esac
+    case "$PD/" in "$RD"/*) P="" ;; esac
 fi
-if [ -n "$P" ] && ! "$P" -c "import graphify" >/dev/null 2>&1; then P=""; fi
+if [ -n "$P" ] && ! (cd / && "$P" -c "import graphify") >/dev/null 2>&1; then P=""; fi
 if [ -z "$P" ]; then
     GRAPHIFY_BIN=$(which graphify 2>/dev/null)
     if [ -n "$GRAPHIFY_BIN" ]; then

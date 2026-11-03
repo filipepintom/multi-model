@@ -124,14 +124,18 @@ const ROOT_TARGETS = [
   /^[\\/]\*?$/, // /  /*
   /^~[\\/]?\*?$/, // ~  ~/  ~/*
   /^\$\{?HOME\}?[\\/]?\*?$/, // $HOME  ${HOME}/*
-  /^\$env:(USERPROFILE|HOMEPATH|HOMEDRIVE|HOME)[\\/]?\*?$/i, // PowerShell home
-  /^%(USERPROFILE|HOMEPATH|HOMEDRIVE)%[\\/]?\*?$/i, // cmd home
+  /^\$(?:env:|\{env:)(USERPROFILE|HOMEPATH|HOMEDRIVE|HOME|SystemDrive)\}?[\\/]?\*?$/i, // PowerShell home and system drive
+  /^(?:%HOMEDRIVE%%HOMEPATH%|%(USERPROFILE|HOMEPATH|HOMEDRIVE|SystemDrive)%)[\\/]?\*?$/i, // cmd home and system drive
   /^(\.\.[\\/])*\.\.[\\/]?\*?$/, // ..  ../..  ../../*
   /^[A-Za-z]:[\\/]?\*?$/, // C:  C:\  C:/  C:\*
   /^[\\/][A-Za-z][\\/]?\*?$/, // /c  /c/  (a Git Bash drive)
 ];
 
-function checkDelete(tokens) {
+// A target that is only a variable plus a separator (`$X/*`) is `/*` when the variable is unset, and every tool call is a fresh shell.
+const BARE_VAR = /^\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})[\\/]\*?$/;
+const assigns = (text, v) => new RegExp(`\\b${v}\\s*=|\\$${v}\\s*=|\\bfor\\s+\\$?${v}\\s+in\\b|\\bforeach\\s*\\(\\s*\\$${v}\\s+in\\b|\\bread\\s+(?:-\\w+\\s+)*\\$?${v}\\b`, 'i').test(text);
+
+function checkDelete(tokens, text) {
   const i = commandAt(tokens, DELETE_CMD);
   if (i < 0) return;
   const cmdStyle = /^(rd|rmdir|del|erase)$/i.test(DELETE_CMD.exec(tokens[i])[1]); // cmd.exe takes /s /q switches
@@ -139,6 +143,11 @@ function checkDelete(tokens) {
     if (t.startsWith('-') || (cmdStyle && /^\/[A-Za-z]$/.test(t))) continue;
     if (ROOT_TARGETS.some((re) => re.test(t))) {
       block('Deleting the root, a drive, the home folder or a parent folder is blocked. Delete specific paths inside the project.');
+    }
+    const v = BARE_VAR.exec(t);
+    const name = v && (v[1] || v[2]);
+    if (name && !assigns(text, name)) {
+      block(`Deleting \`${t}\` is blocked: each tool call is a fresh shell, so an unset $${name} turns this into /*. Set it in the same command, use \${${name}:?} in bash, or use a literal path.`);
     }
   }
 }
@@ -251,7 +260,7 @@ function checkCommand(cmd, cwd, depth = 0) {
 
   let dir = path.resolve(cwd ? msysToNative(cwd) : process.cwd());
   for (const tokens of parse(text)) {
-    checkDelete(tokens);
+    checkDelete(tokens, text);
     checkEnvWrite(tokens);
     const inner = innerScript(tokens);
     if (inner) checkCommand(inner, dir, depth + 1);

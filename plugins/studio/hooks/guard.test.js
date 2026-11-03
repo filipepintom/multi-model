@@ -210,6 +210,20 @@ test('scripts run through a nested shell or eval are checked', () => {
   ]);
 });
 
+test('delete targets: Windows brace and SystemDrive forms, and a bare unset variable', () => {
+  expect('blocked', 'Bash', ['rm -rf $BUILD_DIR/*', 'rm -rf "$OUT"/']);
+  expect('blocked', 'PowerShell', [
+    'Remove-Item -Recurse ${env:USERPROFILE}', 'rd /s /q %SystemDrive%\\', 'Remove-Item -Recurse $env:SystemDrive\\',
+    'rd /s /q %HOMEDRIVE%%HOMEPATH%', 'rd /s /q %SystemDrive%\\*',
+  ]);
+  expect('allowed', 'Bash', [
+    'rm -rf "$TMPDIR"/foo', 'rm -rf "$(mktemp -d)"/x', 'rm -rf $HOME/.cache/x', 'OUT=dist; rm -rf "$OUT"/*',
+    'export out=dist && rm -rf "$OUT"/*', 'for D in a b; do rm -rf "$D"/*; done', 'rm -rf "${OUT:?}"/*',
+    "find . -exec sh -c 'rm -rf \"$1\"/*' _ {} \\;", 'rm -rf "$OUT"',
+  ]);
+  expect('allowed', 'PowerShell', ['$dir = "build"; Remove-Item -Recurse $dir\\*', '$Dir="build"; Remove-Item -Recurse $dir\\*']);
+});
+
 test('unreadable input lets the tool through', () => {
   const r = spawnSync(process.execPath, [GUARD], { input: 'not json', encoding: 'utf8' });
   assert.strictEqual(r.status, 0);

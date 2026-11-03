@@ -46,16 +46,37 @@ function assertSingleDialect(dir) {
 }
 if (fs.existsSync(source)) assertSingleDialect(source);
 
+// Preflight, before any rmSync: the skill must end up with a LICENSE, either from the source or already in place.
+// Returns the current LICENSE/NOTICE so they survive the delete when the source has none.
+function keepLicence(dest, src) {
+  const kept = {};
+  for (const f of ['LICENSE', 'NOTICE']) {
+    if (fs.existsSync(path.join(dest, f))) kept[f] = fs.readFileSync(path.join(dest, f));
+  }
+  if (!fs.existsSync(path.join(src, 'LICENSE')) && !kept.LICENSE) {
+    console.error(`${src} has no LICENSE and ${dest} has none either: the licence text must travel with the copy, nothing was changed.`);
+    process.exit(1);
+  }
+  return kept;
+}
+function restoreLicence(dest, kept) {
+  for (const [f, data] of Object.entries(kept)) {
+    if (!fs.existsSync(path.join(dest, f))) fs.writeFileSync(path.join(dest, f), data);
+  }
+}
+
 const manifest = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) : {};
 const today = new Date().toISOString().slice(0, 10);
 
 if (name === 'impeccable') {
   const dest = path.join(SKILLS, 'impeccable');
+  const kept = keepLicence(dest, source);
   fs.rmSync(dest, { recursive: true, force: true });
   fs.cpSync(source, dest, {
     recursive: true,
     filter: (src) => !src.replace(/\\/g, '/').includes('/scripts/bin'),
   });
+  restoreLicence(dest, kept);
   manifest.impeccable = {
     source: 'https://github.com/pbakaus/impeccable',
     license: 'Apache-2.0',
@@ -107,6 +128,7 @@ if (name === 'impeccable') {
   };
 } else if (name === 'graphify') {
   const dest = path.join(SKILLS, 'graphify');
+  const kept = keepLicence(dest, source);
   fs.rmSync(dest, { recursive: true, force: true });
   fs.cpSync(source, dest, { recursive: true });
   // Única alteração: só por invocação explícita. A descrição original faz a skill disparar em qualquer pergunta
@@ -130,6 +152,7 @@ if (name === 'impeccable') {
     const refs = path.join(dest, 'references');
     if (fs.existsSync(refs)) for (const f of fs.readdirSync(refs)) if (f.endsWith('.md')) pinFile(path.join(refs, f));
   }
+  restoreLicence(dest, kept);
   manifest.graphify = {
     source: 'https://github.com/safishamsi/graphify',
     license: 'MIT OR Apache-2.0',

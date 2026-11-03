@@ -29,9 +29,15 @@ function hermeticPath(root, bin) {
 }
 
 // macOS bash 3.2 rewrites PATH at startup on the CI runner (python3 from /usr/local/bin came back), so set it inside the script.
-function runGuard(dir, root, bin, extra = {}) {
+// The script goes through a file: on Windows, argv quoting collapses the backslashes of `-c` text (tr '\\\\' '/').
+function bashScript(script, opts) {
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gscript-')), 'guard.sh');
+  fs.writeFileSync(f, script);
+  return spawnSync(BASH, [posix(f)], { encoding: 'utf8', ...opts });
+}
+function runGuard(dir, root, bin) {
   const PATH = hermeticPath(root, bin);
-  return spawnSync(BASH, ['-c', `PATH='${PATH}'\n${guard}`], { cwd: dir, env: { PATH, ...SYSROOT }, encoding: 'utf8', ...extra });
+  return bashScript(`PATH='${PATH}'\n${guard}`, { cwd: dir, env: { PATH, ...SYSROOT } });
 }
 
 function run(content, { fakeValid, inProject } = {}) {
@@ -86,7 +92,8 @@ function project() {
   return { root, dir, file: path.join(dir, 'graphify-out', '.graphify_python') };
 }
 
-test('guard: a project-local venv symlinked to an outside python is rejected unexecuted', (t) => {
+// Windows venvs hold copies, not symlinks, and Git Bash's realpath/pwd -P disagree on NTFS symlinks.
+test('guard: a project-local venv symlinked to an outside python is rejected unexecuted', { skip: win && 'NTFS symlinks are not POSIX symlinks in Git Bash' }, (t) => {
   const { root, dir, file } = project();
   const marker = path.join(root, 'marker');
   const real = path.join(root, 'real-python3');
@@ -123,7 +130,7 @@ test('guard: Windows absolute paths and free-threaded names are classified as va
   const dbg = [];
   const classify = (content) => {
     fs.writeFileSync(file, content);
-    const r = spawnSync(BASH, ['-c', `${lines.slice(0, cut).join('\n')}\nprintf %s "$P"`], { ...sh(dir), encoding: 'utf8' });
+    const r = bashScript(`${lines.slice(0, cut).join('\n')}\nprintf %s "$P"`, sh(dir));
     dbg.push(`[${content}] -> status=${r.status} err=${r.error} out=${r.stdout} stderr=${r.stderr}`);
     return r.stdout;
   };

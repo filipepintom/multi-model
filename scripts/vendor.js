@@ -23,6 +23,11 @@ if (!name || !source) {
   console.error('Uso: node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <pasta-de-origem>');
   process.exit(1);
 }
+// Every branch deletes the vendored folder before copying: a mistyped source must stop here, not after the delete.
+if (!fs.existsSync(source)) {
+  console.error(`${source} does not exist: nothing was changed.`);
+  process.exit(1);
+}
 
 function frontmatterVersion(file) {
   const m = /^version:\s*(.+)$/m.exec(fs.readFileSync(file, 'utf8'));

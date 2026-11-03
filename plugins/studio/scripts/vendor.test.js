@@ -67,6 +67,23 @@ test('vendor.js refuses a mixed-dialect skill and leaves the destination untouch
   }
 });
 
+test('vendor.js with a missing source leaves the destination untouched', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vendor-test-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'scripts'));
+    fs.copyFileSync(path.join(repoRoot, 'scripts', 'vendor.js'), path.join(tmp, 'scripts', 'vendor.js'));
+    const dest = path.join(tmp, 'plugins', 'studio', 'skills', 'ponytail');
+    fs.mkdirSync(dest, { recursive: true });
+    fs.writeFileSync(path.join(dest, 'SKILL.md'), 'old\n');
+    fs.writeFileSync(path.join(tmp, 'plugins', 'studio', 'vendor.json'), '{}\n');
+    const r = spawnSync(process.execPath, [path.join(tmp, 'scripts', 'vendor.js'), 'ponytail', path.join(tmp, 'nope')], { encoding: 'utf8', timeout: 20000 });
+    assert.notStrictEqual(r.status, 0);
+    assert.strictEqual(fs.readFileSync(path.join(dest, 'SKILL.md'), 'utf8'), 'old\n');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('Step 1 resolves the uv tool interpreter (fake uv, no python3 on PATH)', { skip: process.platform === 'win32' }, () => {
   const step = skill.split('### Step 1')[1].split('### Step 2')[0];
   const block = step.match(/```bash\n([\s\S]*?)```/)[1].replace('INPUT_PATH', '.');

@@ -29,6 +29,13 @@ function git(args, cwd) {
   try { return execSync(`git ${args}`, { cwd, stdio: 'pipe', timeout: 5000 }).toString().trim(); } catch { return null; }
 }
 
+// Expands ~; on Windows also maps Git Bash and cygwin drive paths (/c/x, /cygdrive/c/x) to C:\x.
+function msysToNative(p, platform = process.platform) {
+  p = p.replace(/^~(?=$|[\\/])/, os.homedir());
+  if (platform !== 'win32') return p;
+  return p.replace(/^\/(?:cygdrive\/)?([a-z])(?=\/|$)(.*)$/i, (_, d, rest) => `${d.toUpperCase()}:${rest.replace(/\//g, '\\') || '\\'}`);
+}
+
 const real = (p) => { try { return fs.realpathSync.native(p); } catch { return path.resolve(p); } };
 
 // ---- Secrets
@@ -166,7 +173,7 @@ function gitCall(tokens, dir) {
   if (i < 0) return null;
   let j = i + 1;
   while (j < tokens.length && tokens[j].startsWith('-')) {
-    if (tokens[j] === '-C' && tokens[j + 1]) dir = path.resolve(dir, tokens[j + 1]);
+    if (tokens[j] === '-C' && tokens[j + 1]) dir = path.resolve(dir, msysToNative(tokens[j + 1]));
     j += GIT_VALUE_OPTS.test(tokens[j]) ? 2 : 1;
   }
   return { sub: tokens[j] || '', args: tokens.slice(j + 1), dir };
@@ -211,7 +218,30 @@ function checkCommit(args, dir, studioRoot) {
   }
 }
 
-function checkCommand(cmd, cwd) {
+// The script a shell or eval runs: bash -c "…", cmd /c …, powershell -Command …, eval …. Never powershell -File.
+const SHELL_CMD = /^(?:(?:\S*[\\/])?(bash|sh|zsh|dash|ksh|cmd|powershell|pwsh)(?:\.exe)?|(eval))$/i;
+function innerScript(tokens) {
+  const i = commandAt(tokens, SHELL_CMD);
+  if (i < 0) return null;
+  const m = SHELL_CMD.exec(tokens[i]);
+  const name = (m[1] || m[2]).toLowerCase();
+  const args = tokens.slice(i + 1);
+  if (name === 'eval') return args.join(' ');
+  if (name === 'cmd') {
+    const k = args.findIndex((a) => /^\/\/?[ck]$/i.test(a));
+    return k < 0 ? null : args.slice(k + 1).join(' ');
+  }
+  if (name === 'powershell' || name === 'pwsh') {
+    const isCommand = (a) => a.length > 1 && '-command'.startsWith(a.toLowerCase());
+    const k = args.findIndex((a) => isCommand(a) || /^-file$/i.test(a));
+    return k < 0 || !isCommand(args[k]) ? null : args.slice(k + 1).join(' ');
+  }
+  const k = args.findIndex((a) => /^-[a-zA-Z]*c[a-zA-Z]*$/.test(a));
+  return k < 0 ? null : args[k + 1] ?? null;
+}
+
+function checkCommand(cmd, cwd, depth = 0) {
+  if (depth > 3) return;
   const text = stripHeredocs(cmd);
   if (REMOTE_SCRIPT.some((re) => re.test(text))) {
     block('Running scripts downloaded from the internet directly is blocked. Download, read, and only then run — with the user\'s approval.');
@@ -219,14 +249,16 @@ function checkCommand(cmd, cwd) {
   const secret = findSecret(cmd);
   if (secret) block(`The command appears to contain a secret (${secret}). Use environment variables.`);
 
-  let dir = path.resolve(cwd || process.cwd());
+  let dir = path.resolve(cwd ? msysToNative(cwd) : process.cwd());
   for (const tokens of parse(text)) {
     checkDelete(tokens);
     checkEnvWrite(tokens);
+    const inner = innerScript(tokens);
+    if (inner) checkCommand(inner, dir, depth + 1);
     if (/^(cd|chdir|pushd|Set-Location|sl)$/i.test(tokens[0])) {
       const target = tokens.slice(1).find((t) => !t.startsWith('-'));
       if (!target) dir = os.homedir();
-      else if (!/[$%*]|^-$/.test(target)) dir = path.resolve(dir, target.replace(/^~(?=$|[\\/])/, os.homedir()));
+      else if (!/[$%*]|^-$/.test(target)) dir = path.resolve(dir, msysToNative(target));
       continue;
     }
     // Rules only for studio-managed projects.
@@ -247,18 +279,20 @@ function checkWrite(input) {
   if (secret) block(`The content appears to contain a secret (${secret}) in ${path.basename(filePath)}. Use environment variables.`);
 }
 
-let raw = '';
-process.stdin.on('data', (c) => { raw += c; });
-process.stdin.on('end', () => {
-  let data;
-  try { data = JSON.parse(raw); } catch { process.exit(0); }
-  const tool = data.tool_name || '';
-  const input = data.tool_input || {};
-  try {
-    if (tool === 'Bash' || tool === 'PowerShell') checkCommand(input.command || '', data.cwd);
-    else if (tool === 'Write' || tool === 'Edit' || tool === 'MultiEdit') checkWrite(input);
-  } catch {
-    // fail-open
-  }
-  process.exit(0);
-});
+if (require.main === module) {
+  let raw = '';
+  process.stdin.on('data', (c) => { raw += c; });
+  process.stdin.on('end', () => {
+    let data;
+    try { data = JSON.parse(raw); } catch { process.exit(0); }
+    const tool = data.tool_name || '';
+    const input = data.tool_input || {};
+    try {
+      if (tool === 'Bash' || tool === 'PowerShell') checkCommand(input.command || '', data.cwd);
+      else if (tool === 'Write' || tool === 'Edit' || tool === 'MultiEdit') checkWrite(input);
+    } catch {
+      // fail-open
+    }
+    process.exit(0);
+  });
+} else module.exports = { msysToNative };

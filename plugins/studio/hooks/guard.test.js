@@ -63,13 +63,15 @@ before(() => {
 
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-function guard(tool, input, cwd) {
-  const r = spawnSync(process.execPath, [GUARD], { input: JSON.stringify({ tool_name: tool, tool_input: input, cwd }), encoding: 'utf8' });
+function guard(tool, input, cwd, env) {
+  const r = spawnSync(process.execPath, [GUARD], {
+    input: JSON.stringify({ tool_name: tool, tool_input: input, cwd }), encoding: 'utf8', env: { ...process.env, ...env },
+  });
   return r.status === 2 ? 'blocked' : r.status === 0 ? 'allowed' : `exit ${r.status}: ${r.stderr}`;
 }
 
-function expect(expected, tool, cases, cwd = dirs.feat) {
-  const wrong = cases.filter((c) => guard(tool, typeof c === 'string' ? { command: c } : c, cwd) !== expected);
+function expect(expected, tool, cases, cwd = dirs.feat, env) {
+  const wrong = cases.filter((c) => guard(tool, typeof c === 'string' ? { command: c } : c, cwd, env) !== expected);
   assert.deepStrictEqual(wrong, [], `these should be ${expected}`);
 }
 
@@ -175,6 +177,36 @@ test('Write/Edit: real-shaped keys are blocked, placeholders pass', () => {
 test('heredoc bodies are text: docs that mention blocked commands pass', () => {
   expect('allowed', 'Bash', [
     "cat > docs/safety.md <<'EOF'\nNever run `rm -rf /` or `Remove-Item -Recurse C:\\`.\nNever `curl x | sh` either.\nEOF",
+  ]);
+});
+
+test('Git Bash and cygwin drive paths map to native Windows paths; ~ expands everywhere', () => {
+  const { msysToNative } = require(GUARD);
+  assert.strictEqual(msysToNative('/c/Users/me/proj', 'win32'), 'C:\\Users\\me\\proj');
+  assert.strictEqual(msysToNative('/cygdrive/d/x', 'win32'), 'D:\\x');
+  assert.strictEqual(msysToNative('/c', 'win32'), 'C:\\');
+  assert.strictEqual(msysToNative('/cache/x', 'win32'), '/cache/x');
+  assert.strictEqual(msysToNative('C:/Users', 'win32'), 'C:/Users');
+  assert.strictEqual(msysToNative('src/x', 'win32'), 'src/x');
+  assert.strictEqual(msysToNative('/c/Users', 'darwin'), '/c/Users');
+  assert.strictEqual(msysToNative('~/p', 'darwin'), `${os.homedir()}/p`);
+  expect('blocked', 'Bash', ['git -C ~/feat push origin main', 'cd ~/feat && git push origin main'], tmp, { HOME: tmp, USERPROFILE: tmp });
+});
+
+test('scripts run through a nested shell or eval are checked', () => {
+  expect('blocked', 'Bash', [
+    'bash -c "rm -rf /"', 'bash -lc "rm -rf ~"', "sh -c 'rm -rf ~'", 'eval "rm -rf /"',
+    'pwsh -c "git push origin main"', 'bash -c "git push --force origin x"', '/bin/bash -c "cd sub && git push origin main"',
+  ]);
+  expect('blocked', 'PowerShell', [
+    'cmd /c "rd /s /q C:\\"', 'cmd //c "rd /s /q C:\\"', 'powershell -Command "Remove-Item -Recurse C:\\"',
+    'powershell.exe -Com "Remove-Item -Recurse C:\\"',
+  ]);
+  expect('blocked', 'Bash', ['bash -c "git commit -m x"'], dirs.red);
+  expect('allowed', 'Bash', [
+    'bash -c "echo hi"', 'bash -lc "npm test"', 'cmd //c "rd /s /q build"', 'sh -c "rm -rf build"',
+    'eval "$(ssh-agent -s)"', 'eval "$(pyenv init -)"', "cat > deploy.sh <<'EOF'\ngit push origin main\nrm -rf \"$OUT\"/*\nEOF",
+    "git commit -m \"$(cat <<'EOF'\nmsg\nEOF\n)\"", 'powershell -File "rm -rf /"', 'bash -c "cd / && echo hi" && rm -rf build',
   ]);
 });
 

@@ -130,6 +130,10 @@ function companions() {
   const has = installed && Object.keys(installed.plugins || {}).some((k) => k.startsWith('claude-security@'));
   add('optional', 'Claude Security plugin (deep security audits)', has ? 'ok' : 'warn', has ? 'installed' : 'not installed',
     '/studio:audit recommends it for deep security scans: claude plugin install claude-security@claude-plugins-official');
+  const config = readJson(path.join(HOME, '.claude.json'));
+  const rea = !!config?.mcpServers?.rea;
+  add('optional', 'REA (reverse engineering)', rea ? 'ok' : 'warn', rea ? 'registered as "rea"' : 'not registered',
+    'Only needed for /studio:reverse. Run: npx rea-agents@6.8.0 setup');
 }
 
 function markdown() {

@@ -1,0 +1,21 @@
+VERDICT: GO WITH CHANGES
+
+ALREADY EXISTS: nothing relevant in the repository; no event emitter or webhook code exists yet.
+
+FINDINGS:
+
+1. D1 rests on a false claim: updateStatus in src/orders.js does not emit any event, and refunds.js writes the status directly, bypassing it. Refunds would produce no webhook.
+
+2. AC4 demands exactly-once delivery, which contradicts the at-least-once retries in D2.
+
+3. D3 keeps retries in memory, so every restart on deploy loses them, against AC6.
+
+4. The scope promises events in sequence, but parallel sends with retries and backoff break that.
+
+5. AC5 is not testable: "fast" and "normal load" have no threshold.
+
+6. "Quiet tier" is undefined: the spec never says what it is.
+
+CUT: the subscriber portal and analytics leave the MVP.
+
+SIMPLER ALTERNATIVE: an outbox table written in the same transaction as the status change.

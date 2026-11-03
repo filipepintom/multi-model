@@ -58,7 +58,7 @@ Launch `studio:critic` with the request and the context you have. Save the resul
 ## Phase 2 — Spec
 
 1. If there is existing code, launch `studio:explorer` (one or more in parallel, with concrete questions) to understand the relevant architecture. Do not read the files yourself.
-2. Write `spec.md` from [templates/spec.md](templates/spec.md). **Testable** acceptance criteria, explicit MVP scope, explicit out of scope.
+2. Write `spec.md` from [templates/spec.md](templates/spec.md). **Testable** acceptance criteria, explicit MVP scope, explicit out of scope. If the request names a `reverse.md`, read it: the spec reproduces the behavior in it, never its code or assets, and its inferred and unknown items become decisions or risks, not facts.
 3. **Decisions.** Identify the choices that change the product, the cost or the risk: architecture, where the data lives, access and authentication, scope, integrations, visual direction. Write each one in the "Decisions" section with options, trade-offs, your recommendation and the cost of changing later. The recommendations take the user's known preferences into account (phase 0). At most ~7; the rest goes into "Assumed".
 4. **Design direction** (only if the project has an interface). Without a direction, the implementers produce the default interface, which is generic. Follow the **Design** section below before gate 1.
 5. Launch `studio:critic` in spec mode on `spec.md`. Fix what is valid.

@@ -19,6 +19,7 @@ The plugin's prompts are in English. Everything you read (questions, specs, repo
 | Node.js 18+ | yes | The plugin's hooks run on Node |
 | git | yes | Builds use branches and worktrees |
 | Python 3.10+ with uv, pipx or pip | no | Only for `/studio:graphify` |
+| [REA](https://github.com/morluto/rea), registered as the MCP server `rea` | no | Only for `/studio:reverse`. Native binaries also need Hopper, Ghidra, IDA or Kuna; Android needs JADX and Java; JavaScript and Electron apps need nothing else |
 | Network access to `mcp.context7.com` | no | Up-to-date library docs; without it agents use their own knowledge |
 
 ### Steps
@@ -93,14 +94,15 @@ The audit never changes code. Every finding needs `file:line`, the code and a co
 |---|---|
 | `/studio:retro [slug]` | Turns a build's failures into personal lessons and preferences. Runs automatically at the end of every build |
 | `/studio:graphify [path]` | Builds a knowledge graph of a codebase; studio agents use it whenever `graphify-out/` exists |
+| `/studio:reverse <target> <question>` | Explains how a feature of a shipped app works with REA (native, .NET, JavaScript/Electron, Android, firmware, WASM, captures, SQLite), and saves a report with evidence that `/studio:build` can use. `--compare <older>` finds behavior changes between versions; `--verify <build>` checks a reconstruction against the original. Static by default; `--runtime` lets it observe or drive the app (browser, Electron, process, Frida, adb) after you approve the exact run list. Only for software you own or have the right to analyze |
 | `/studio:setup [--check]` | Checks and prepares the machine |
 
 ## What's inside
 
 | Path | What it is |
 |---|---|
-| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet for maintainability), `verifier` (Sonnet; Opus for critical/high) |
-| `plugins/studio/skills/build/`, `audit/`, `retro/`, `setup/` | The studio's own commands and their templates |
+| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet for maintainability), `verifier` (Sonnet; Opus for critical/high), `reverser` and `reverser-live` (Sonnet) |
+| `plugins/studio/skills/build/`, `audit/`, `reverse/`, `retro/`, `setup/` | The studio's own commands and their templates |
 | `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `humanizer/`, `context7-mcp/` | Bundled third-party skills (see [Bundled skills](#bundled-skills)) |
 | `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents, design detector |
 | `plugins/studio/knowledge/lessons.md` | Base lessons shipped with the plugin |
@@ -171,9 +173,26 @@ Results go to `evals/results.csv`: pass/fail, cost, wall-clock time, turns, mode
 | Large | 012 notes CRUD app, 013 error-handling refactor |
 | Greenfield (idea phase on) | 014 expense split, 015 habit streaks |
 | Audit | 016 Node shop API, 017 Python expenses app (8 planted issues + 4 decoys each) |
-| Single agent | 018 verifier vs 4 false and 2 real findings |
+| Single agent | 018 verifier vs 4 false and 2 real findings, 019 critic vs a spec with 7 planted defects and 2 decoys, 020 reverser on a minified bundle with dead code and an injected comment (needs REA) |
+| Visual (blind jury) | 021 workshop app screen, 022 bakery landing page, 023 polish of an AI-looking clinic agenda |
 
-**Rule:** before adding a skill, changing a model or editing a prompt, commit, run the relevant evals with `--label` before and after, and compare. `--settings <file>` and `--extra-plugin <dir>` support A/B tests of plugins; `--stats <workspace>` measures code size.
+**Rule:** before adding a skill, changing a model or editing a prompt, commit, run the relevant evals with `--label` before and after, and compare. `--settings <file>` and `--extra-plugin <dir>` support A/B tests of plugins; `--stats <workspace>` measures code size; `--isolate` leaves out your personal skills, plugins, hooks and MCP servers; `--control` runs the task with no studio at all.
+
+The visual evals' `check.js` only confirms the page exists and kept its content. Design is judged from screenshots by jurors who don't know which side is which; it needs Chrome, or `CHROME` set to its path:
+
+```bash
+node evals/run.js --task 021-visual-app-screen,022-visual-landing,023-visual-polish --isolate --label visual-studio
+```
+
+```bash
+node evals/run.js --task 021-visual-app-screen,022-visual-landing,023-visual-polish --control --label visual-control
+```
+
+```bash
+node evals/visual/jury.js --a visual-studio --b visual-control
+```
+
+The output in `evals/visual/out/` has `report.md`, `key.json` and `board.html`, for your own vote before you open the key. Side A wins only with a juror majority on at least 2 of 3 tasks and an average gain of at least 2 points out of 25. With one run per side this shows a direction, not a measurement.
 
 ### Updating bundled skills
 
@@ -186,10 +205,12 @@ New tools go in only when a real failure or an eval justifies them.
 | Tool | Status | Reason |
 |---|---|---|
 | Impeccable, Ponytail, graphify, Humanizer, Context7 | Bundled | See [Bundled skills](#bundled-skills) |
+| REA | Optional, not bundled | 49 MB and frequent releases; `/studio:reverse` uses your own install. `reverser` gets only REA's static tools; runtime tools belong to `reverser-live`, which runs only with `--runtime` and an approved run list. Neither gets `uninstall_adb_package` or `push_adb_file` |
 | Strix (dynamic pentesting) | Waiting | For a future deploy step, against staging |
 | addyosmani/agent-skills, thermo-nuclear review, Emil Kowalski design skills, 21st.dev Magic MCP | Waiting | No failure that justifies them yet |
 | pstack (full plugin) | Rejected | Its router competes with the orchestrator |
 | Hallmark | Rejected | Duplicates Impeccable; two design skills give contradictory instructions |
+| Taste, Unslop | Rejected as bundled skills | Same conflict as Hallmark. The visual evals borrow Taste's blind comparison. Tested on 2026-11-03 on top of plain Claude, one run each against a plain-Claude run that later proved unusually good. Unslop won 0 of 3. Taste won 023 against all three plain-Claude runs and also against the studio, but lost 022 by inventing content and using stock photos. It beat plain Claude on 021 in two of three runs and lost 021 to the studio. Inside the studio, used only for 023, it lost both runs to the plain studio: its standalone wins came from adding features, which the studio's spec keeps out |
 | Scrapling | Rejected | No research failures to fix; its strength is bypassing anti-bot protection, which is a terms-of-service risk |
 | Agent-Reach | Rejected | Copies browser session cookies and installs through remote instructions run by the agent |
 | Harness² | Rejected for now | Linux and Vertex AI only; its core idea (improve the harness with evidence) is already covered by the evals |

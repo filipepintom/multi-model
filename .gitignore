@@ -4,3 +4,6 @@ node_modules/
 
 # Junção local para a pasta pessoal do plugin (compatibilidade com builds da 0.5.x); não é do repo.
 knowledge/
+
+# Saída do júri visual (capturas e chave da ocultação).
+evals/visual/out/

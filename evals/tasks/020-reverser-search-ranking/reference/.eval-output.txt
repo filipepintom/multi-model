@@ -1,0 +1,21 @@
+TARGET: dist/app.min.js, JavaScript bundle, notes-web 2.3.0. REA Evidence: ev_cd6418aa
+
+ANSWER: Search tokenizes the query, adds terms from the server, scores each note by term matches with a recency decay, adds a bonus to pinned notes and returns the top results.
+
+FACTS:
+- u() is the live scorer, called by m().
+- l() is unreachable in practice: it is only exported behind window.__never.
+
+INFERRED: nothing
+
+UNKNOWN:
+- How /api/synonyms chooses its terms: the synonym logic lives on the server.
+
+TO REPRODUCE:
+- Lowercase, strip accents and split on non-alphanumerics.
+- Score = title matches × 3.5 + body matches × 1.2. A score of zero drops the note.
+- Multiply by 0.5^(age in days / 14).
+- Add 8 for pinned notes.
+- Sort by score, then most recent. Keep the first 20.
+
+LIMITS: Static analysis only; synonym behavior needs a runtime check.

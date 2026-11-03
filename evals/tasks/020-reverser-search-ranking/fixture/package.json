@@ -1,0 +1,6 @@
+{
+  "name": "notes-web",
+  "version": "2.3.0",
+  "private": true,
+  "main": "dist/app.min.js"
+}

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VetAgenda ✨</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; color: #f4f0ff; background: linear-gradient(135deg, #1a1033, #3b1d7a 60%, #6d28d9); min-height: 100vh; }
+  header { display: flex; align-items: center; gap: 13px; padding: 19px 33px; }
+  .logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: linear-gradient(135deg, #a855f7, #ec4899); box-shadow: 0 0 22px rgba(168, 85, 247, .7); }
+  h1 { margin: 0; font-size: 27px; font-weight: 900; background: linear-gradient(90deg, #c084fc, #f472b6); -webkit-background-clip: text; color: transparent; }
+  .pro { margin-left: 7px; padding: 3px 11px; font-size: 11px; border-radius: 99px; background: linear-gradient(90deg, #f472b6, #a855f7); box-shadow: 0 0 12px #f472b6; }
+  main { max-width: 1100px; margin: 0 auto; padding: 21px 33px 60px; }
+  .hello { font-size: 34px; font-weight: 800; margin: 12px 0 5px; }
+  .sub { color: #c4b5fd; margin: 0 0 27px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px; margin-bottom: 34px; }
+  .stat { padding: 23px; border-radius: 22px; background: rgba(255, 255, 255, .08); border: 1px solid rgba(192, 132, 252, .5); backdrop-filter: blur(12px); box-shadow: 0 8px 30px rgba(109, 40, 217, .5); }
+  .stat b { display: block; font-size: 36px; background: linear-gradient(90deg, #fff, #f0abfc); -webkit-background-clip: text; color: transparent; }
+  .stat span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #ddd6fe; }
+  h2 { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: #e9d5ff; margin: 31px 0 13px; }
+  .filters button { margin-right: 9px; padding: 9px 19px; color: #fff; border: 0; border-radius: 99px; background: rgba(255, 255, 255, .12); cursor: pointer; }
+  .filters button.on { background: linear-gradient(90deg, #a855f7, #ec4899); box-shadow: 0 0 16px rgba(236, 72, 153, .8); }
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
+  .card { padding: 19px 22px; border-radius: 22px; background: rgba(255, 255, 255, .08); border: 1px solid rgba(192, 132, 252, .5); backdrop-filter: blur(12px); }
+  .card h3 { margin: 0 0 7px; font-size: 19px; font-weight: 800; }
+  .card p { margin: 3px 0; color: #ddd6fe; font-size: 14px; }
+  .tag { display: inline-block; margin-top: 9px; padding: 3px 12px; font-size: 12px; border-radius: 99px; background: rgba(236, 72, 153, .25); box-shadow: 0 0 10px rgba(236, 72, 153, .6); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🐾</div>
+  <h1>VetAgenda</h1>
+  <span class="pro">PRO ✨</span>
+</header>
+<main>
+  <p class="hello">Bem-vinda de volta, Receção! 👋</p>
+  <p class="sub">Vamos cuidar de patudos incríveis hoje!! 🚀</p>
+  <section class="stats">
+    <div class="stat"><b>6</b><span>🐶 Consultas</span></div>
+    <div class="stat"><b>2</b><span>⏳ Por confirmar</span></div>
+    <div class="stat"><b>1</b><span>🚨 Urgência</span></div>
+  </section>
+  <h2>📅 Consultas de hoje</h2>
+  <div class="filters">
+    <button class="on" data-vet="todas">Todas</button>
+    <button data-vet="Dra. Sara Nunes">Dra. Sara Nunes</button>
+    <button data-vet="Dra. Clara Dias">Dra. Clara Dias</button>
+  </div>
+  <div class="cards" id="cards"></div>
+  <h2>⏳ Por confirmar</h2>
+  <div class="cards">
+    <div class="card"><h3>🐇 Nuvem</h3><p>Coelha, vacina anual, amanhã 10:30</p><p>Tutor: Paula Ramos, 912 000 118</p></div>
+    <div class="card"><h3>🐈 Sombra</h3><p>Gata, pós-operatório, amanhã 15:00</p><p>Tutor: Rui Matos, 912 000 245</p></div>
+  </div>
+</main>
+<script>
+  const consultas = [
+    { animal: '🐶 Bolinha', detalhe: 'Beagle, 4 anos, vacina', hora: '09:00', vet: 'Dra. Sara Nunes', estado: 'Chegou ✅' },
+    { animal: '🐈 Tareco', detalhe: 'Gato, 11 anos, análises renais', hora: '09:45', vet: 'Dra. Clara Dias', estado: 'Em consulta 🩺' },
+    { animal: '🐕 Rex', detalhe: 'Pastor alemão, 7 anos, coxeia da pata traseira', hora: '10:30', vet: 'Dra. Sara Nunes', estado: 'Urgência 🚨' },
+    { animal: '🦜 Kiwi', detalhe: 'Caturra, 2 anos, corte de unhas', hora: '11:15', vet: 'Dra. Clara Dias', estado: 'Marcada' },
+    { animal: '🐕 Mel', detalhe: 'Labrador, 9 anos, controlo de peso', hora: '14:00', vet: 'Dra. Sara Nunes', estado: 'Marcada' },
+    { animal: '🐈 Pantufa', detalhe: 'Gata, 3 anos, esterilização', hora: '15:30', vet: 'Dra. Clara Dias', estado: 'Marcada' },
+  ];
+  const cards = document.getElementById('cards');
+  function mostra(vet) {
+    cards.innerHTML = consultas.filter((c) => vet === 'todas' || c.vet === vet).map((c) =>
+      `<div class="card"><h3>${c.animal}</h3><p>${c.detalhe}</p><p>${c.hora}, ${c.vet}</p><span class="tag">${c.estado}</span></div>`).join('');
+  }
+  document.querySelectorAll('.filters button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelector('.filters .on').classList.remove('on');
+    b.classList.add('on');
+    mostra(b.dataset.vet);
+  }));
+  mostra('todas');
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 {
   "name": "studio",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Multi-model pipeline: build (idea, spec, plan, implementation, review and delivery) and audit what already exists (independent lenses, adversarial verification, evidence-backed backlog), with Opus orchestrating and Sonnet/Haiku executing.",
   "author": {
     "name": "Filipe Melo"

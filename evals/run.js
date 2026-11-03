@@ -9,6 +9,11 @@
 //   node evals/run.js --extra-plugin <dir>  carrega plugins extra (para A/B de skills de terceiros, sem os instalar)
 //   node evals/run.js --stats <workspace>   calcula as linhas de código/testes e dependências de um workspace
 //   node evals/run.js --settings <ficheiro> settings extra para a sessão (ex.: evals/ab/sem-ponytail.json)
+//   node evals/run.js --isolate             sem as skills, plugins, hooks e MCP pessoais (para um A/B limpo)
+//   node evals/run.js --control             Claude sem o estúdio: task.md tal como está, sem plugin (implica --isolate)
+//   node evals/run.js --plugin <dir>        usa outra cópia do plugin (ex.: gerada por evals/ab/sem-design.js)
+//   node evals/run.js --timeout-min <n>     limite por tarefa (por omissão: 60)
+//   node evals/run.js --prompt-prefix <txt> texto antes do pedido (ex.: mandar usar a skill de um --extra-plugin)
 //
 // Cada tarefa: task.md (pedido), check.js (escondido), reference/ (solução de referência, só para validar),
 // fixture/ (código inicial, opcional), fixture-from (id de outra tarefa cujo fixture reutilizar, opcional),
@@ -29,12 +34,12 @@ const TASKS_DIR = path.join(__dirname, 'tasks');
 const LIB_DIR = path.join(__dirname, 'lib');
 const RESULTS = path.join(__dirname, 'results.csv');
 const HEADER = ['data', 'versao_studio', 'label', 'modelo', 'tarefa', 'passou', 'custo_usd', 'duracao_s', 'turnos', 'erro', 'workspace', 'metricas'];
-const PLUGIN_DIR = path.join(ROOT, 'plugins', 'studio');
+const PLUGIN_DIR = path.resolve(arg('--plugin') || path.join(ROOT, 'plugins', 'studio'));
 
 const ALLOWED_TOOLS = [
   'Bash(npm *)', 'Bash(npx *)', 'Bash(node *)', 'Bash(git *)',
   'Bash(python *)', 'Bash(pytest *)', 'Bash(ls *)', 'Bash(mkdir *)', 'Bash(cat *)',
-  'WebSearch', 'WebFetch',
+  'WebSearch', 'WebFetch', 'mcp__rea',
 ];
 
 function arg(name) {
@@ -48,6 +53,8 @@ const dryRun = process.argv.includes('--dry-run');
 const extraPlugins = (arg('--extra-plugin') || '').split(',').filter(Boolean).map((p) => path.resolve(p));
 const settingsFile = arg('--settings'); // settings extra (ex.: desligar um plugin instalado no grupo de controlo de um A/B)
 const statsOnly = arg('--stats'); // node evals/run.js --stats <workspace>: só calcula as métricas de dimensão
+const control = process.argv.includes('--control');
+const isolate = control || process.argv.includes('--isolate');
 
 function studioVersion() {
   try {
@@ -133,18 +140,20 @@ function runClaude(prompt, ws, agent) {
     '-p', '--output-format', 'json',
     '--model', model,
     ...(agent ? ['--agent', agent] : []),
-    '--plugin-dir', PLUGIN_DIR,
+    ...(control ? [] : ['--plugin-dir', PLUGIN_DIR]),
     ...extraPlugins.flatMap((p) => ['--plugin-dir', p]),
     ...(settingsFile ? ['--settings', path.resolve(settingsFile)] : []),
+    // Sem isto, as skills pessoais de design entram nos dois lados e o A/B deixa de medir o estúdio.
+    ...(isolate ? ['--setting-sources', 'project', '--strict-mcp-config'] : []),
     // auto: um classificador aprova ações seguras sem humano; os guardrails do plugin continuam ativos.
     '--permission-mode', 'auto',
     // O estúdio lê templates e lições do plugin fora do workspace. Só esta pasta: evals/ (checks e referências) fica inacessível.
-    '--add-dir', PLUGIN_DIR,
+    ...(control ? [] : ['--add-dir', PLUGIN_DIR]),
     '--allowedTools', ...ALLOWED_TOOLS,
   ];
   const r = spawnSync('claude', args, {
     cwd: ws, input: prompt, encoding: 'utf8', shell: process.platform === 'win32',
-    timeout: 60 * 60 * 1000, maxBuffer: 64 * 1024 * 1024,
+    timeout: Number(arg('--timeout-min') || 60) * 60 * 1000, maxBuffer: 64 * 1024 * 1024,
   });
   try {
     return JSON.parse(r.stdout);
@@ -192,7 +201,8 @@ for (const id of tasks) {
   const command = readOpt('command') || '/studio:build';
   const flags = readOpt('flags') ?? (command === '/studio:build' ? '--skip-idea' : '');
   const agent = command.startsWith('agent:') ? command.slice('agent:'.length).trim() : undefined;
-  const prompt = agent ? taskText : `${command} --auto ${flags}\n\n${taskText}`.replace(/ +\n/, '\n');
+  const request = agent || control ? taskText : `${command} --auto ${flags}\n\n${taskText}`.replace(/ +\n/, '\n');
+  const prompt = arg('--prompt-prefix') ? `${arg('--prompt-prefix')}\n\n${request}` : request;
 
   if (dryRun) {
     const problems = [];

@@ -18,7 +18,7 @@ The plugin's prompts are in English. Everything you read (questions, specs, repo
 | Claude Code | yes | CLI or desktop app, with access to Opus (the orchestrator) |
 | Node.js 18+ | yes | The plugin's hooks run on Node |
 | git | yes | Builds use branches and worktrees |
-| Python 3.10+ with uv, pipx or pip | no | Only for `/studio:graphify` |
+| Python 3.10+ with uv or pip | no | Only for `/studio:graphify` (it needs bash: Git Bash on Windows) |
 | [REA](https://github.com/morluto/rea), registered as the MCP server `rea` | no | Only for `/studio:reverse`. Native binaries also need Hopper, Ghidra, IDA or Kuna; Android needs JADX and Java; JavaScript and Electron apps need nothing else |
 | Network access to `mcp.context7.com` | no | Up-to-date library docs; without it agents use their own knowledge |
 

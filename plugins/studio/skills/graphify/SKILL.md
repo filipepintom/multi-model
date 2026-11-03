@@ -69,33 +69,45 @@ This skill needs bash (on Windows, Git Bash, which Claude Code uses for its Bash
 
 ```bash
 # Detect the correct Python interpreter (handles uv tool, pipx, venv, system installs)
-PYTHON=""
-GRAPHIFY_BIN=$(which graphify 2>/dev/null)
-# 1. uv tool installs - most reliable on modern Mac/Linux
-if [ -z "$PYTHON" ] && command -v uv >/dev/null 2>&1; then
-    _UV_PY=$(uv tool run graphifyy python -c "import sys; print(sys.executable)" 2>/dev/null)
-    if [ -n "$_UV_PY" ]; then PYTHON="$_UV_PY"; fi
-fi
-# 2. Read shebang from graphify binary (pipx and direct pip installs)
-if [ -z "$PYTHON" ] && [ -n "$GRAPHIFY_BIN" ]; then
-    _SHEBANG=$(head -1 "$GRAPHIFY_BIN" | tr -d '#!')
-    case "$_SHEBANG" in
+# Interpreter inside the uv tool env (POSIX bin/, Git Bash on Windows Scripts/), if graphify imports there
+_uv_py() {
+    command -v uv >/dev/null 2>&1 || return 0
+    _D=$(uv tool dir 2>/dev/null) || return 0
+    for _P in "$_D/graphifyy/bin/python" "$_D/graphifyy/Scripts/python.exe"; do
+        if [ -x "$_P" ] && "$_P" -c "import graphify" 2>/dev/null; then echo "$_P"; return 0; fi
+    done
+}
+# Interpreter from the graphify binary's shebang (pipx and direct pip installs)
+_shebang_py() {
+    _BIN=$(which graphify 2>/dev/null)
+    [ -n "$_BIN" ] || return 0
+    _SB=$(head -1 "$_BIN" | tr -d '#!')
+    case "$_SB" in
         *[!a-zA-Z0-9/_.@-]*) ;;
-        *) "$_SHEBANG" -c "import graphify" 2>/dev/null && PYTHON="$_SHEBANG" ;;
+        *) "$_SB" -c "import graphify" 2>/dev/null && echo "$_SB" ;;
     esac
+}
+PYTHON=$(_uv_py)
+if [ -z "$PYTHON" ]; then PYTHON=$(_shebang_py); fi
+# Fall back to the first Python 3 on PATH: python3, python, then the Windows launcher
+if [ -z "$PYTHON" ]; then
+    for _C in python3 python "py -3"; do
+        if $_C -c "import sys; sys.exit(sys.version_info[0] < 3)" 2>/dev/null; then
+            PYTHON=$($_C -c "import sys; print(sys.executable)"); break
+        fi
+    done
 fi
-# 3. Fall back to python3
-if [ -z "$PYTHON" ]; then PYTHON="python3"; fi
-if ! "$PYTHON" -c "import graphify" 2>/dev/null; then
+if [ -z "$PYTHON" ] || ! "$PYTHON" -c "import graphify" 2>/dev/null; then
     if command -v uv >/dev/null 2>&1; then
         uv tool install graphifyy==0.9.11 -q 2>&1 | tail -3
-        _UV_PY=$(uv tool run graphifyy python -c "import sys; print(sys.executable)" 2>/dev/null)
-        if [ -n "$_UV_PY" ]; then PYTHON="$_UV_PY"; fi
-    else
+        _NEW=$(_uv_py); if [ -z "$_NEW" ]; then _NEW=$(_shebang_py); fi
+        if [ -n "$_NEW" ]; then PYTHON="$_NEW"; fi
+    elif [ -n "$PYTHON" ]; then
         "$PYTHON" -m pip install graphifyy==0.9.11 -q 2>/dev/null \
           || "$PYTHON" -m pip install graphifyy==0.9.11 -q --break-system-packages 2>&1 | tail -3
     fi
 fi
+if [ -z "$PYTHON" ]; then echo "No Python 3 found. Install Python 3 or uv, then run again." >&2; exit 1; fi
 # Write interpreter path for all subsequent steps (persists across invocations)
 mkdir -p graphify-out
 "$PYTHON" -c "import sys; open('graphify-out/.graphify_python', 'w', encoding='utf-8').write(sys.executable)"

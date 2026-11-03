@@ -66,3 +66,37 @@ test('vendor.js refuses a mixed-dialect skill and leaves the destination untouch
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('Step 1 resolves the uv tool interpreter (fake uv, no python3 on PATH)', { skip: process.platform === 'win32' }, () => {
+  const step = skill.split('### Step 1')[1].split('### Step 2')[0];
+  const block = step.match(/```bash\n([\s\S]*?)```/)[1].replace('INPUT_PATH', '.');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'step1-test-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const tools = path.join(tmp, 'tools');
+    const work = path.join(tmp, 'work');
+    for (const d of [bin, tools, work]) fs.mkdirSync(d);
+    // Only the utilities Step 1 needs; deliberately no python3.
+    for (const c of ['bash', 'which', 'head', 'tr', 'tail', 'mkdir', 'cat', 'pwd', 'dirname', 'chmod']) {
+      const r = spawnSync('bash', ['-c', `command -v ${c}`], { encoding: 'utf8' }).stdout.trim();
+      if (r) fs.symlinkSync(r, path.join(bin, c));
+    }
+    const calls = path.join(tmp, 'uv-calls.txt');
+    fs.writeFileSync(path.join(bin, 'uv'), `#!/bin/bash
+echo "$@" >> "${calls}"
+if [ "$1 $2" = "tool dir" ]; then echo "${tools}"; exit 0; fi
+if [ "$1 $2" = "tool install" ]; then
+  mkdir -p "${tools}/graphifyy/bin"
+  printf '#!/bin/bash\\ncase "$*" in *"open("*) printf "%%s" "$0" > graphify-out/.graphify_python;; esac\\nexit 0\\n' > "${tools}/graphifyy/bin/python"
+  chmod +x "${tools}/graphifyy/bin/python"
+fi
+exit 0
+`, { mode: 0o755 });
+    const r = spawnSync(path.join(bin, 'bash'), ['-c', block], { cwd: work, env: { PATH: bin, HOME: tmp }, encoding: 'utf8', timeout: 20000 });
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.match(fs.readFileSync(calls, 'utf8'), new RegExp(`tool install graphifyy==${version.replace(/\./g, '\\.')}`));
+    assert.strictEqual(fs.readFileSync(path.join(work, 'graphify-out', '.graphify_python'), 'utf8'), path.join(tools, 'graphifyy', 'bin', 'python'));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

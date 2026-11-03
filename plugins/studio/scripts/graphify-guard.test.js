@@ -28,6 +28,12 @@ function hermeticPath(root, bin) {
   return `${bin}:${util}`;
 }
 
+// macOS bash 3.2 rewrites PATH at startup on the CI runner (python3 from /usr/local/bin came back), so set it inside the script.
+function runGuard(dir, root, bin, extra = {}) {
+  const PATH = hermeticPath(root, bin);
+  return spawnSync(BASH, ['-c', `PATH='${PATH}'\n${guard}`], { cwd: dir, env: { PATH, ...SYSROOT }, encoding: 'utf8', ...extra });
+}
+
 function run(content, { fakeValid, inProject } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gguard-'));
   const dir = path.join(root, 'proj'); // the project; the trusted fake python lives outside it
@@ -46,16 +52,14 @@ function run(content, { fakeValid, inProject } = {}) {
     content = posix(path.join(dir, 'tools', 'python'));
   }
   fs.writeFileSync(file, fakeValid ? py : content);
-  spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT } });
-  const dg = spawnSync(BASH, ['-c', 'echo PATH=$PATH; type -a python3; which graphify; echo bash=$BASH $BASH_VERSION'], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT }, encoding: 'utf8' });
-  const g = spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT }, encoding: 'utf8' });
-  return { diag: dg.stdout + dg.stderr + '|guard:' + g.status + g.stdout + g.stderr, dir, py, file, after: fs.readFileSync(file, 'utf8') };
+  runGuard(dir, root, bin);
+  return { dir, py, file, after: fs.readFileSync(file, 'utf8') };
 }
 
 test('guard: an untrusted .graphify_python is rewritten and never executed', () => {
   const r = run('sh evil.sh');
   assert.ok(!fs.existsSync(path.join(r.dir, 'pwned')));
-  assert.strictEqual(r.after, r.py, r.diag);
+  assert.strictEqual(r.after, r.py);
 });
 
 test('guard: a valid interpreter path is kept', () => {
@@ -95,9 +99,9 @@ test('guard: a project-local venv symlinked to an outside python is rejected une
   const bin = path.join(root, 'bin');
   fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
-  spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT } });
+  const g = runGuard(dir, root, bin);
   assert.ok(!fs.existsSync(marker));
-  assert.notStrictEqual(fs.readFileSync(file, 'utf8'), posix(link));
+  assert.notStrictEqual(fs.readFileSync(file, 'utf8'), posix(link), `status=${g.status} ${g.stdout} ${g.stderr} link=${posix(link)} real=${real}`);
 });
 
 test('guard: import graphify is validated outside the project (a repo graphify.py does not run)', (t) => {
@@ -116,11 +120,14 @@ test('guard: Windows absolute paths and free-threaded names are classified as va
   const lines = guard.split('\n');
   const cut = lines.findIndex((l) => l.includes('-f "$P"'));
   assert.ok(cut > 0, 'existence check line not found');
+  const dbg = [];
   const classify = (content) => {
     fs.writeFileSync(file, content);
-    return spawnSync(BASH, ['-c', `${lines.slice(0, cut).join('\n')}\nprintf %s "$P"`], { ...sh(dir), encoding: 'utf8' }).stdout;
+    const r = spawnSync(BASH, ['-c', `${lines.slice(0, cut).join('\n')}\nprintf %s "$P"`], { ...sh(dir), encoding: 'utf8' });
+    dbg.push(`[${content}] -> status=${r.status} err=${r.error} out=${r.stdout} stderr=${r.stderr}`);
+    return r.stdout;
   };
-  assert.strictEqual(classify('C:\\Python312\\python.exe'), 'C:\\Python312\\python.exe');
+  assert.strictEqual(classify('C:\\Python312\\python.exe'), 'C:\\Python312\\python.exe', dbg.join('\n'));
   assert.strictEqual(classify('/usr/bin/python3.13t'), '/usr/bin/python3.13t');
   assert.strictEqual(classify('C:\\x\\evil.exe'), '');
   assert.strictEqual(classify('relative/python3'), '');
@@ -157,7 +164,7 @@ test('guard: a stored Python 3.10 is never run with -c and is re-resolved to a 3
   const good = posix(path.join(bin, 'python3'));
   fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.11.9; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
   fs.writeFileSync(file, posix(old));
-  spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT } });
+  runGuard(dir, root, bin);
   assert.ok(!fs.existsSync(marker));
   assert.strictEqual(fs.readFileSync(file, 'utf8'), good);
 });

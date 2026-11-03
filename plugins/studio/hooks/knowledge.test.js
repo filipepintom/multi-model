@@ -49,6 +49,9 @@ test('retro: one batch confirmation with AskUserQuestion before personal writes 
   assert.match(RETRO, /One `AskUserQuestion` call/);
   assert.match(RETRO, /"Lessons"/);
   assert.match(RETRO, /"Preferences"/);
+  assert.match(RETRO, /at most 4 changes/);
+  assert.match(RETRO, /never written/);
+  assert.match(RETRO, /multiSelect. false/);
 });
 
 test('retro: deletions and consolidation are in the batch (regression guard)', () => {

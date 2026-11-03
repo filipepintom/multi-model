@@ -24,7 +24,8 @@ function add(area, name, status, detail, fix = '') {
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: opts.timeout || 15000, shell: isWin, env: { ...process.env, ...opts.env } });
-  return { ok: r.status === 0, out: `${r.stdout || ''}${r.stderr || ''}`.trim(), status: r.status };
+  const out = `${r.stdout || ''}${r.stderr || ''}`.trim();
+  return { ok: r.status === 0, out: r.error ? `${r.error.code || r.error.message} ${out}`.trim() : out, status: r.status, error: r.error };
 }
 
 function version(text) {
@@ -73,7 +74,8 @@ function readJson(file) {
     // First run downloads the platform binary into a version-pinned cache.
     const r = run(launcher, ['--version'], { timeout: 180000, env: { IMPECCABLE_NO_TELEMETRY: '1' } });
     add('optional', 'Impeccable detector', r.ok ? 'ok' : 'warn', r.ok ? `v${r.out.split('\n').pop()}` : r.out.slice(-200),
-      'Needs network on first run to download the detector binary. Rerun /studio:setup once online.');
+      r.error ? `The launcher could not start (${r.error.code || r.error.message}). Reinstall the studio plugin or report this.`
+        : 'Needs network on first run to download the detector binary. Rerun /studio:setup once online.');
   }
 }
 

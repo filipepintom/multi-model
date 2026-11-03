@@ -57,3 +57,39 @@ test('retro: one batch confirmation with AskUserQuestion before personal writes 
 test('retro: deletions and consolidation are in the batch (regression guard)', () => {
   assert.match(RETRO, /deletions, replacements and the ~40-line consolidation count as changes/i);
 });
+
+// Failure modes: an unwritable folder or a huge personal file must not drop the plugin lessons or Ponytail.
+function runWith(prompt, knowledgeDir) {
+  const root = path.join(tmp, 'plugin-full');
+  fs.mkdirSync(path.join(root, 'knowledge'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'skills', 'ponytail'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'knowledge', 'lessons.md'), 'PLUGIN-LESSON-MARKER');
+  fs.writeFileSync(path.join(root, 'skills', 'ponytail', 'SKILL.md'), '---\nname: ponytail\n---\nPONYTAIL MODE ACTIVE body');
+  const r = spawnSync('node', [HOOK], {
+    input: JSON.stringify({ prompt }), encoding: 'utf8', timeout: 10000,
+    env: { ...process.env, STUDIO_KNOWLEDGE_DIR: knowledgeDir, CLAUDE_PLUGIN_ROOT: root },
+  });
+  return JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+}
+
+test('an unwritable personal folder still injects plugin lessons, Ponytail and an unavailable line', () => {
+  const blocker = path.join(tmp, 'blocker');
+  fs.writeFileSync(blocker, 'a file, so mkdir below it fails');
+  const ctx = runWith('/studio:build x', path.join(blocker, 'knowledge'));
+  assert.match(ctx, /PLUGIN-LESSON-MARKER/);
+  assert.match(ctx, /PONYTAIL MODE ACTIVE/);
+  assert.match(ctx, /Personal lessons unavailable: .*blocker.*\(ENOTDIR\)/);
+});
+
+test('truncation cuts the personal lessons first and keeps preferences and Ponytail', () => {
+  const dir = path.join(tmp, 'big');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'lessons.md'), 'x'.repeat(45000));
+  fs.writeFileSync(path.join(dir, 'preferences.md'), 'PREFERENCES-MARKER');
+  const ctx = runWith('/studio:build x', dir);
+  assert.match(ctx, /PLUGIN-LESSON-MARKER/);
+  assert.match(ctx, /PREFERENCES-MARKER/);
+  assert.match(ctx, /PONYTAIL MODE ACTIVE/);
+  assert.match(ctx, /\[truncated: consolidate/);
+  assert.ok(ctx.length <= 40000 + 200, String(ctx.length));
+});

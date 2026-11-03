@@ -59,7 +59,7 @@ Rules:
 - Format: one actionable line + `(source: [[<slug>]], <YYYY-MM-DD>)`.
 - With `--auto` (evals), do not save lessons.
 
-Lessons are proposals until the batch in the section "Confirm and write" is accepted.
+Personal lessons are proposals until the batch in the section "Confirm and write" is accepted.
 
 ## 4. Update your preferences
 

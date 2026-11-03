@@ -72,11 +72,20 @@ function readJson(file) {
     add('optional', 'Impeccable detector', 'warn', 'launcher missing from the plugin', 'Reinstall the studio plugin.');
   } else {
     // First run downloads the platform binary into a version-pinned cache.
-    const r = run(launcher, ['--version'], { timeout: 180000, env: { IMPECCABLE_NO_TELEMETRY: '1' } });
+    // Same platform rule as hooks/impeccable.js: sh on POSIX (the exec bit does not matter), quoted .cmd through the shell on Windows.
+    const r = isWin ? run(`"${launcher}"`, ['--version'], { timeout: 180000, env: { IMPECCABLE_NO_TELEMETRY: '1' } })
+      : run('sh', [launcher, '--version'], { timeout: 180000, env: { IMPECCABLE_NO_TELEMETRY: '1' } });
     add('optional', 'Impeccable detector', r.ok ? 'ok' : 'warn', r.ok ? `v${r.out.split('\n').pop()}` : r.out.slice(-200),
       r.error && r.error.code !== 'ETIMEDOUT' ? `The launcher could not start (${r.error.code || r.error.message}). Reinstall the studio plugin or report this.`
         : 'Needs network on first run to download the detector binary. Rerun /studio:setup once online.');
   }
+}
+
+if (isWin) {
+  const gb = process.env.CLAUDE_CODE_GIT_BASH_PATH;
+  const found = (gb && fs.existsSync(gb)) || ['ProgramFiles', 'ProgramFiles(x86)'].some((v) => process.env[v] && fs.existsSync(path.join(process.env[v], 'Git', 'bin', 'bash.exe')));
+  add('optional', 'Git Bash (Windows)', found ? 'ok' : 'warn', found ? 'found' : 'not found',
+    'Install Git for Windows (https://git-scm.com/download/win); without it hooks run in PowerShell');
 }
 
 // ---- Network

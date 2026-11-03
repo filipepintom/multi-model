@@ -19,17 +19,17 @@ test('doctor reports a launcher that cannot start without blaming the network', 
   try {
     const copy = path.join(tmp, 'studio');
     fs.cpSync(pluginRoot, copy, { recursive: true });
-    fs.chmodSync(path.join(copy, launcherRel), 0o644);
     const home = path.join(tmp, 'home');
     fs.mkdirSync(home);
     const stub = path.join(tmp, 'stub.js');
     fs.writeFileSync(stub, "globalThis.fetch = () => Promise.reject(new Error('offline'));\n");
-    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    // The launcher runs through sh (exec bit irrelevant), so make sh unfindable to get a launcher that cannot start.
+    const env = { ...process.env, HOME: home, USERPROFILE: home, PATH: path.join(tmp, 'empty') };
     delete env.CLAUDE_CONFIG_DIR;
     const r = spawnSync(process.execPath, ['--require', stub, path.join(copy, 'scripts', 'doctor.js'), '--json'], { env, encoding: 'utf8', timeout: 200000 });
     const row = JSON.parse(r.stdout).checks.find((c) => c.name === 'Impeccable detector');
     assert.equal(row.status, 'warn');
-    assert.match(row.detail, /EACCES/);
+    assert.match(row.detail, /ENOENT/);
     assert.doesNotMatch(row.fix, /network|online/i);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

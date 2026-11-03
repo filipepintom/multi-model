@@ -10,8 +10,11 @@ const skill = fs.readFileSync(path.join(__dirname, '..', 'skills', 'graphify', '
 const guard = skill.split('## Interpreter guard for subcommands')[1].match(/```bash\n([\s\S]*?)```/)[1];
 
 const win = process.platform === 'win32';
-// Git Bash cannot read C:\\... paths: hand it POSIX ones (cygpath is part of Git for Windows).
-const posix = (p) => (win ? spawnSync('cygpath', ['-u', p], { encoding: 'utf8' }).stdout.trim() : p);
+// On Windows spawnSync looks the command up in the CHILD's PATH, so pass bash by absolute path (not WSL's System32 one).
+const BASH = win ? (spawnSync('where', ['bash'], { encoding: 'utf8' }).stdout.split(/\r?\n/).filter(Boolean).find((l) => !/system32/i.test(l)) || 'bash') : 'bash';
+const SYSROOT = win ? { SYSTEMROOT: process.env.SYSTEMROOT } : {};
+// Git Bash cannot read C:\\... paths: hand it POSIX ones.
+const posix = (p) => (win ? spawnSync(BASH, ['-c', 'cygpath -u "$1"', '_', p], { encoding: 'utf8' }).stdout.trim() : p);
 // PATH with the fake bin and only the utilities the guard needs, so no real python3 can be found.
 // On Windows symlinks are not available, and Git Bash's /usr/bin has no python3.
 function hermeticPath(root, bin) {
@@ -43,14 +46,16 @@ function run(content, { fakeValid, inProject } = {}) {
     content = posix(path.join(dir, 'tools', 'python'));
   }
   fs.writeFileSync(file, fakeValid ? py : content);
-  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin) } });
-  return { dir, py, file, after: fs.readFileSync(file, 'utf8') };
+  spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT } });
+  const dg = spawnSync(BASH, ['-c', 'echo PATH=$PATH; type -a python3; which graphify; echo bash=$BASH $BASH_VERSION'], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT }, encoding: 'utf8' });
+  const g = spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT }, encoding: 'utf8' });
+  return { diag: dg.stdout + dg.stderr + '|guard:' + g.status + g.stdout + g.stderr, dir, py, file, after: fs.readFileSync(file, 'utf8') };
 }
 
 test('guard: an untrusted .graphify_python is rewritten and never executed', () => {
   const r = run('sh evil.sh');
   assert.ok(!fs.existsSync(path.join(r.dir, 'pwned')));
-  assert.strictEqual(r.after, r.py);
+  assert.strictEqual(r.after, r.py, r.diag);
 });
 
 test('guard: a valid interpreter path is kept', () => {
@@ -69,7 +74,7 @@ test('guard: an interpreter inside the project is never executed and is replaced
   assert.strictEqual(r.after, r.py);
 });
 
-const sh = (dir, extra = {}) => ({ cwd: dir, env: { PATH: '/usr/bin:/bin', ...extra } });
+const sh = (dir, extra = {}) => ({ cwd: dir, env: { PATH: '/usr/bin:/bin', ...SYSROOT, ...extra } });
 function project() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gguard-'));
   const dir = path.join(root, 'proj');
@@ -90,7 +95,7 @@ test('guard: a project-local venv symlinked to an outside python is rejected une
   const bin = path.join(root, 'bin');
   fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
-  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin) } });
+  spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT } });
   assert.ok(!fs.existsSync(marker));
   assert.notStrictEqual(fs.readFileSync(file, 'utf8'), posix(link));
 });
@@ -102,7 +107,7 @@ test('guard: import graphify is validated outside the project (a repo graphify.p
   const py = spawnSync('python3', ['-c', 'import sys;print(sys.executable)'], { encoding: 'utf8' }).stdout.trim();
   if (!py) return t.skip('python3 not on PATH');
   fs.writeFileSync(file, py);
-  spawnSync('bash', ['-c', guard], sh(dir));
+  spawnSync(BASH, ['-c', guard], sh(dir));
   assert.ok(!fs.existsSync(marker));
 });
 
@@ -113,7 +118,7 @@ test('guard: Windows absolute paths and free-threaded names are classified as va
   assert.ok(cut > 0, 'existence check line not found');
   const classify = (content) => {
     fs.writeFileSync(file, content);
-    return spawnSync('bash', ['-c', `${lines.slice(0, cut).join('\n')}\nprintf %s "$P"`], { ...sh(dir), encoding: 'utf8' }).stdout;
+    return spawnSync(BASH, ['-c', `${lines.slice(0, cut).join('\n')}\nprintf %s "$P"`], { ...sh(dir), encoding: 'utf8' }).stdout;
   };
   assert.strictEqual(classify('C:\\Python312\\python.exe'), 'C:\\Python312\\python.exe');
   assert.strictEqual(classify('/usr/bin/python3.13t'), '/usr/bin/python3.13t');
@@ -152,7 +157,7 @@ test('guard: a stored Python 3.10 is never run with -c and is re-resolved to a 3
   const good = posix(path.join(bin, 'python3'));
   fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.11.9; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
   fs.writeFileSync(file, posix(old));
-  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin) } });
+  spawnSync(BASH, ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin), ...SYSROOT } });
   assert.ok(!fs.existsSync(marker));
   assert.strictEqual(fs.readFileSync(file, 'utf8'), good);
 });

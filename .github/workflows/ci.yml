@@ -1,0 +1,98 @@
+# Runs the studio plugin's tests and its hooks the way Claude Code launches them, on Windows, macOS and Linux.
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tests
+        shell: bash
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.invalid
+          git config --global init.defaultBranch main
+          node --test "plugins/studio/**/*.test.js"
+      - name: Release check
+        shell: bash
+        run: node scripts/check-release.js
+      - name: Doctor
+        shell: bash
+        run: node plugins/studio/scripts/doctor.js
+
+  windows-hooks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Copy the plugin to a folder with a space (like C:\Users\First Last)
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'With Space\studio'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item -Recurse -Force plugins/studio/* $dest
+          "PLUGIN=$dest" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Impeccable hook under Git Bash (downloads and verifies the detector)
+        shell: bash
+        run: |
+          export CLAUDE_PLUGIN_ROOT="$PLUGIN"
+          echo '{}' | node "${CLAUDE_PLUGIN_ROOT}/hooks/impeccable.js" hook
+          echo "rc=$?"
+          node "${CLAUDE_PLUGIN_ROOT}/hooks/impeccable.js" --version
+      - name: Impeccable hook under Windows PowerShell 5.1 (no Git Bash path)
+        shell: powershell
+        run: |
+          $env:CLAUDE_PLUGIN_ROOT = $env:PLUGIN
+          '{}' | node "${env:CLAUDE_PLUGIN_ROOT}/hooks/impeccable.js" hook
+          if ($LASTEXITCODE -ne 0) { throw "hook exit $LASTEXITCODE" }
+      - name: impeccable.cmd verifies against SHA256SUMS
+        shell: cmd
+        run: |
+          set IMPECCABLE_NO_TELEMETRY=1
+          set IMPECCABLE_HOME=%RUNNER_TEMP%\imp-home
+          "%PLUGIN%\skills\impeccable\scripts\impeccable.cmd" --version || exit /b 1
+      - name: impeccable.cmd refuses a tampered pin
+        shell: pwsh
+        run: |
+          $s = Join-Path $env:RUNNER_TEMP 'tampered'
+          Copy-Item -Recurse -Force "$env:PLUGIN\skills\impeccable\scripts" $s
+          (Get-Content "$s\SHA256SUMS") -replace '^c7dfa8846ec5','0000a8846ec5' | Set-Content "$s\SHA256SUMS"
+          $env:IMPECCABLE_HOME = Join-Path $env:RUNNER_TEMP 'imp-home-2'
+          $env:IMPECCABLE_NO_TELEMETRY = '1'
+          & cmd /d /c "`"$s\impeccable.cmd`" --version"
+          if ($LASTEXITCODE -eq 0) { throw 'tampered pin was accepted' }
+          "refused with exit $LASTEXITCODE"
+      - name: Guard maps Git Bash /c/ paths and runs verify in Git Bash
+        shell: bash
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.invalid
+          proj="$RUNNER_TEMP/proj"
+          mkdir -p "$proj/.studio" && cd "$proj" && git init -q -b main && git commit -q --allow-empty -m init
+          echo 'test -f must-exist' > .studio/verify
+          posix=$(cygpath -u "$proj")
+          run() { printf '%s' "$1" | node "$PLUGIN/hooks/guard.js"; echo "exit=$?"; }
+          out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $posix && git push origin main\"},\"cwd\":\"C:\\\\\"}")
+          echo "$out"; echo "$out" | grep -q 'exit=2'
+          out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git commit -m x\"},\"cwd\":\"$posix\"}" 2>&1)
+          echo "$out"; echo "$out" | grep -q 'exit=2'; echo "$out" | grep -qi 'git bash'
+      - name: Guard hook start failure does not block (onFailure continue is accepted)
+        shell: bash
+        run: node -e "const h=require('./plugins/studio/hooks/hooks.json').hooks.PreToolUse; if(!h.every(e=>e.hooks.every(x=>x.onFailure==='continue'))) process.exit(1)"
+      - name: Doctor from the folder with a space
+        shell: pwsh
+        run: node "$env:PLUGIN\scripts\doctor.js"

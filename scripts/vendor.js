@@ -76,12 +76,16 @@ const today = new Date().toISOString().slice(0, 10);
 if (name === 'impeccable') {
   const dest = path.join(SKILLS, 'impeccable');
   const kept = keepLicence(dest, source);
+  const sumsFile = path.join(dest, 'scripts', 'SHA256SUMS');
+  const sums = fs.existsSync(sumsFile) ? fs.readFileSync(sumsFile) : null;
   fs.rmSync(dest, { recursive: true, force: true });
   fs.cpSync(source, dest, {
     recursive: true,
     filter: (src) => !src.replace(/\\/g, '/').includes('/scripts/bin'),
   });
   restoreLicence(dest, kept);
+  if (sums && !fs.existsSync(sumsFile)) fs.writeFileSync(sumsFile, sums);
+  console.log('Reminder: scripts/SHA256SUMS must match scripts/VERSION (hashes of the engine-v<VERSION> release assets); check-release.js verifies it.');
   manifest.impeccable = {
     source: 'https://github.com/pbakaus/impeccable',
     license: 'Apache-2.0',

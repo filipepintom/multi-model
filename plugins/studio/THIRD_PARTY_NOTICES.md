@@ -21,12 +21,12 @@ The **Context7 server** is not copied: it is a remote MCP server (`https://mcp.c
 
 ## modern-screenshot
 
-Bundled as `skills/impeccable/scripts/modern-screenshot.umd.js`. The copyright line below is a placeholder based on the upstream project; check the exact line in the upstream repository before release.
+Bundled as `skills/impeccable/scripts/modern-screenshot.umd.js`.
 
 ```
 MIT License
 
-Copyright (c) qq15725 and modern-screenshot contributors
+Copyright (c) 2021-present wxm
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

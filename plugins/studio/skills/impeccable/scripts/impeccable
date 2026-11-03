@@ -164,8 +164,14 @@ if [ -n "$version" ] && [ "$os" != unknown ] && [ "$arch" != unknown ]; then
       wget -q -O "$tmp.sha256" "$url.sha256" 2>/dev/null && sidecar_ok=1
     fi
     check_download
+    # SHA256SUMS next to this launcher pins the hash (the sidecar comes from the
+    # same release as the binary, so a replaced asset would carry a matching
+    # sidecar). The sidecar is only the fallback when there is no entry.
+    pinned=""
+    [ -f "$dir/SHA256SUMS" ] && pinned=$(awk -v a="${url##*/}" '$1 !~ /^#/ && $2 == a { print $1; exit }' "$dir/SHA256SUMS")
     expected=""
-    [ "$sidecar_ok" = 1 ] && expected=$(cut -d' ' -f1 < "$tmp.sha256")
+    if [ -n "$pinned" ]; then expected=$pinned
+    elif [ "$sidecar_ok" = 1 ]; then expected=$(cut -d' ' -f1 < "$tmp.sha256"); fi
     actual=""
     if command -v shasum >/dev/null 2>&1; then
       if digest=$(shasum -a 256 "$tmp" 2>/dev/null); then actual=${digest%% *}; fi

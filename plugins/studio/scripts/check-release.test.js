@@ -26,6 +26,7 @@ function copy() {
   const sh = path.join(dir, 'plugins/studio/skills/impeccable/scripts/impeccable');
   fs.mkdirSync(path.dirname(sh), { recursive: true });
   fs.writeFileSync(sh, '#!/bin/sh\n', { mode: 0o755 });
+  for (const f of ['VERSION', 'SHA256SUMS']) fs.copyFileSync(path.join(ROOT, 'plugins/studio/skills/impeccable/scripts', f), path.join(path.dirname(sh), f));
   return dir;
 }
 
@@ -68,5 +69,24 @@ test('check-release: a vendored skill with no README row is reported', () => {
   const r = check(dir);
   assert.strictEqual(r.status, 1);
   assert.match(r.stdout, /humanizer.*no README .*row/i);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('check-release: a missing or incomplete SHA256SUMS is a problem line', () => {
+  const dir = copy();
+  const sums = path.join(dir, 'plugins/studio/skills/impeccable/scripts/SHA256SUMS');
+  const good = fs.readFileSync(sums, 'utf8');
+  fs.writeFileSync(sums, good.replace('# engine-v', '# engine-vX'));
+  let r = check(dir);
+  assert.strictEqual(r.status, 1);
+  assert.match(r.stdout, /SHA256SUMS/);
+  fs.writeFileSync(sums, good.split('\n').filter((l) => !/windows/.test(l)).join('\n'));
+  r = check(dir);
+  assert.strictEqual(r.status, 1);
+  assert.match(r.stdout, /SHA256SUMS/);
+  fs.rmSync(sums);
+  r = check(dir);
+  assert.strictEqual(r.status, 1);
+  assert.match(r.stdout, /SHA256SUMS/);
   fs.rmSync(dir, { recursive: true, force: true });
 });

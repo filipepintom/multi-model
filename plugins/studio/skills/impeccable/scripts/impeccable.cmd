@@ -114,11 +114,16 @@ rem Mirrors the sh launcher and fails closed: a freshly downloaded binary
 rem runs only after verifying against its .sha256 sidecar. A sidecar that
 rem cannot be fetched, or an empty certutil result, refuses the download
 rem instead of running an unverified binary.
+rem SHA256SUMS next to this launcher pins the hash; the sidecar comes from the
+rem same release as the binary, so it is only the fallback when there is no entry.
+set "expected="
+if exist "%~dp0SHA256SUMS" for /f "usebackq eol=# tokens=1,2" %%a in ("%~dp0SHA256SUMS") do if /I "%%b"=="%asset%" set "expected=%%a"
+if defined expected goto have_expected
 curl.exe -fsSL -o "%sidecar%" "%url%.sha256" >nul 2>nul
 if errorlevel 1 goto verify_refuse
-set "expected="
 set /p expected=<"%sidecar%"
 for /f "tokens=1" %%h in ("%expected%") do set "expected=%%h"
+:have_expected
 call :check_download
 if errorlevel 1 exit /b 127
 set "actual="

@@ -40,6 +40,18 @@ if (mode ? mode !== '100755' : !(fs.existsSync(path.join(root, launcher)) && fs.
   problems.push(`Impeccable launcher ${launcher} is not executable (git mode ${mode || 'untracked'})`);
 }
 
+// The launchers pin the engine hashes in SHA256SUMS: it must list the 5 assets of the VERSION in scripts/VERSION.
+const impScripts = path.join(plugin, 'skills', 'impeccable', 'scripts');
+try {
+  const version = fs.readFileSync(path.join(impScripts, 'VERSION'), 'utf8').trim();
+  const lines = fs.readFileSync(path.join(impScripts, 'SHA256SUMS'), 'utf8').split(/\r?\n/);
+  if (lines[0].trim() !== `# engine-v${version}`) problems.push(`SHA256SUMS first line is not "# engine-v${version}" (VERSION is ${version})`);
+  const listed = new Set(lines.filter((l) => /^[0-9a-f]{64}  \S+$/.test(l)).map((l) => l.slice(66)));
+  for (const a of ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'windows-x64.exe']) {
+    if (!listed.has(`impeccable-${a}`)) problems.push(`SHA256SUMS has no hash for impeccable-${a}`);
+  }
+} catch (e) { problems.push(`Impeccable SHA256SUMS/VERSION unreadable: ${e.code || e.message}`); }
+
 try {
   if (!readJson(path.join(plugin, '.claude-plugin', 'plugin.json')).version) problems.push('plugin.json has no version');
 } catch (e) { problems.push(`plugin.json invalid: ${e.message}`); }

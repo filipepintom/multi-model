@@ -74,7 +74,7 @@ function readJson(file) {
     // First run downloads the platform binary into a version-pinned cache.
     const r = run(launcher, ['--version'], { timeout: 180000, env: { IMPECCABLE_NO_TELEMETRY: '1' } });
     add('optional', 'Impeccable detector', r.ok ? 'ok' : 'warn', r.ok ? `v${r.out.split('\n').pop()}` : r.out.slice(-200),
-      r.error ? `The launcher could not start (${r.error.code || r.error.message}). Reinstall the studio plugin or report this.`
+      r.error && r.error.code !== 'ETIMEDOUT' ? `The launcher could not start (${r.error.code || r.error.message}). Reinstall the studio plugin or report this.`
         : 'Needs network on first run to download the detector binary. Rerun /studio:setup once online.');
   }
 }

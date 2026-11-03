@@ -1,0 +1,41 @@
+// Tests for the interpreter guard in the graphify skill. Run: node --test plugins/studio/scripts/graphify-guard.test.js
+const { test } = require('node:test');
+const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const skill = fs.readFileSync(path.join(__dirname, '..', 'skills', 'graphify', 'SKILL.md'), 'utf8');
+const guard = skill.split('## Interpreter guard for subcommands')[1].match(/```bash\n([\s\S]*?)```/)[1];
+
+function run(content, { fakeValid } = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gguard-'));
+  const bin = path.join(dir, 'bin');
+  fs.mkdirSync(bin);
+  fs.mkdirSync(path.join(dir, 'graphify-out'));
+  // fake python: "import graphify" succeeds; any other -c writes the script's own path to the marker file
+  const py = path.join(bin, 'python3');
+  fs.writeFileSync(py, '#!/bin/sh\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(dir, 'evil.sh'), 'touch pwned\n');
+  const file = path.join(dir, 'graphify-out', '.graphify_python');
+  fs.writeFileSync(file, fakeValid ? py : content);
+  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: `${bin}:/usr/bin:/bin` } });
+  return { dir, py, file, after: fs.readFileSync(file, 'utf8') };
+}
+
+test('guard: an untrusted .graphify_python is rewritten and never executed', () => {
+  const r = run('sh evil.sh');
+  assert.ok(!fs.existsSync(path.join(r.dir, 'pwned')));
+  assert.strictEqual(r.after, r.py);
+});
+
+test('guard: a valid interpreter path is kept', () => {
+  const r = run('', { fakeValid: true });
+  assert.strictEqual(r.after, r.py);
+});
+
+test('guard: a path whose name is not python is rewritten', () => {
+  const r = run('/bin/sh');
+  assert.strictEqual(r.after, r.py);
+});

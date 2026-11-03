@@ -637,10 +637,15 @@ The graph is the map. Your job after the pipeline is to be the guide.
 
 ## Interpreter guard for subcommands
 
-Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check that `.graphify_python` exists. If it's missing (e.g. user deleted `graphify-out/`), re-resolve the interpreter first:
+Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`), or when `"$P" -c "import graphify"` fails:
 
 ```bash
-if [ ! -f graphify-out/.graphify_python ]; then
+P=$(head -1 graphify-out/.graphify_python 2>/dev/null)
+case "$P" in /*) [ -f "$P" ] || P="" ;; *) P="" ;; esac
+N="${P##*/}"; N="${N%.exe}"
+case "$N" in python*) case "${N#python}" in *[!0-9.]*) P="" ;; esac ;; *) P="" ;; esac
+if [ -n "$P" ] && ! "$P" -c "import graphify" >/dev/null 2>&1; then P=""; fi
+if [ -z "$P" ]; then
     GRAPHIFY_BIN=$(which graphify 2>/dev/null)
     if [ -n "$GRAPHIFY_BIN" ]; then
         PYTHON=$(head -1 "$GRAPHIFY_BIN" | tr -d '#!')

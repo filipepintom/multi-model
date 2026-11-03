@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// Atualiza as skills de terceiros incluídas no plugin (vendored) a partir de cópias locais, e regista a versão.
+// Updates the third-party skills bundled in the plugin (vendored) from local copies, and records the version.
 //
-//   node scripts/vendor.js impeccable <pasta-da-skill-impeccable>
-//   node scripts/vendor.js ponytail   <pasta-do-plugin-ponytail>
-//   node scripts/vendor.js graphify   <pasta-da-skill-graphify>
-//   node scripts/vendor.js humanizer  <pasta-da-skill-humanizer>
-//   node scripts/vendor.js context7   <pasta com SKILL.md (skills/context7-mcp) e LICENSE do repo upstash/context7>
+//   node scripts/vendor.js impeccable <impeccable-skill-folder>
+//   node scripts/vendor.js ponytail   <ponytail-plugin-folder>
+//   node scripts/vendor.js graphify   <graphify-skill-folder>
+//   node scripts/vendor.js humanizer  <humanizer-skill-folder>
+//   node scripts/vendor.js context7   <folder with SKILL.md (skills/context7-mcp) and the LICENSE of the upstash/context7 repo>
 //
-// Lê o código novo antes de atualizar: estas skills correm com as permissões de quem usa o plugin.
-// O binário do detetor do Impeccable (scripts/bin) não entra: o lançador descarrega o binário certo para cada
-// sistema operativo na primeira utilização.
+// Read the new code before updating: these skills run with the permissions of whoever uses the plugin.
+// The Impeccable detector binary (scripts/bin) is left out: the launcher downloads the right binary for each
+// operating system on first use.
 
 const fs = require('fs');
 const path = require('path');
@@ -20,7 +20,7 @@ const MANIFEST = path.join(ROOT, 'plugins', 'studio', 'vendor.json');
 
 const [name, source] = process.argv.slice(2);
 if (!name || !source) {
-  console.error('Uso: node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <pasta-de-origem>');
+  console.error('Usage: node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <source-folder>');
   process.exit(1);
 }
 // Every branch deletes the vendored folder before copying: a mistyped source must stop here, not after the delete.
@@ -87,7 +87,7 @@ if (name === 'impeccable') {
     license: 'Apache-2.0',
     version: frontmatterVersion(path.join(dest, 'SKILL.md')),
     updated: today,
-    notes: 'Sem scripts/bin: o lançador descarrega o binário do detetor na primeira utilização.',
+    notes: 'No scripts/bin: the launcher downloads the detector binary on first use.',
   };
 } else if (name === 'ponytail') {
   const dest = path.join(SKILLS, 'ponytail');
@@ -101,10 +101,10 @@ if (name === 'impeccable') {
     license: 'MIT',
     version: pkg.version,
     updated: today,
-    notes: 'Só a skill. A injeção nos subagentes do estúdio é feita por hooks/subagent.js.',
+    notes: 'Skill only. The injection into the studio subagents is done by hooks/subagent.js.',
   };
 } else if (name === 'context7') {
-  // Origem: pasta com SKILL.md (de skills/context7-mcp do repo upstash/context7) e o LICENSE do repo.
+  // Source: folder with SKILL.md (from skills/context7-mcp in the upstash/context7 repo) and the repo's LICENSE.
   const dest = path.join(SKILLS, 'context7-mcp');
   fs.rmSync(dest, { recursive: true, force: true });
   fs.mkdirSync(dest, { recursive: true });
@@ -115,7 +115,7 @@ if (name === 'impeccable') {
     license: 'MIT',
     version: 'master',
     updated: today,
-    notes: 'Só a skill de uso do servidor MCP remoto declarado em .mcp.json; a CLI ctx7 (Node >= 22.13) não é usada.',
+    notes: 'Only the skill for using the remote MCP server declared in .mcp.json; the ctx7 CLI (Node >= 22.13) is not used.',
   };
 } else if (name === 'humanizer') {
   const dest = path.join(SKILLS, 'humanizer');
@@ -129,15 +129,15 @@ if (name === 'impeccable') {
     license: 'MIT',
     version: m ? m[1] : undefined,
     updated: today,
-    notes: 'Só a skill. Usada na entrega (README, delivery.md, docs para pessoas) e no report.md da auditoria; nunca em specs, planos ou outros contratos entre agentes.',
+    notes: 'Skill only. Used on delivery (README, delivery.md, docs for people) and in the audit report.md; never on specs, plans or other contracts between agents.',
   };
 } else if (name === 'graphify') {
   const dest = path.join(SKILLS, 'graphify');
   const kept = keepLicence(dest, source);
   fs.rmSync(dest, { recursive: true, force: true });
   fs.cpSync(source, dest, { recursive: true });
-  // Única alteração: só por invocação explícita. A descrição original faz a skill disparar em qualquer pergunta
-  // sobre código, o que num plugin partilhado interfere com o trabalho normal de toda a gente.
+  // The only change: explicit invocation only. The original description makes the skill fire on any question
+  // about code, which in a shared plugin gets in the way of everyone's normal work.
   const skill = path.join(dest, 'SKILL.md');
   const text = fs.readFileSync(skill, 'utf8');
   if (!/^disable-model-invocation:/m.test(text)) {
@@ -163,12 +163,12 @@ if (name === 'impeccable') {
     license: 'MIT OR Apache-2.0',
     version: fs.existsSync(versionFile) ? fs.readFileSync(versionFile, 'utf8').trim() : undefined,
     updated: today,
-    notes: 'Alterado: disable-model-invocation (só /studio:graphify). Na primeira utilização instala o pacote Python graphifyy.',
+    notes: 'Changed: disable-model-invocation (only /studio:graphify). On first use it installs the graphifyy Python package.',
   };
 } else {
-  console.error(`Skill desconhecida: ${name}`);
+  console.error(`Unknown skill: ${name}`);
   process.exit(1);
 }
 
 fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n');
-console.log(`${name} ${manifest[name].version} copiado para plugins/studio/skills/${name === 'context7' ? 'context7-mcp' : name}`);
+console.log(`${name} ${manifest[name].version} copied to plugins/studio/skills/${name === 'context7' ? 'context7-mcp' : name}`);

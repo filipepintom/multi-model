@@ -4,34 +4,34 @@
     "license": "Apache-2.0",
     "version": "4.7.0",
     "updated": "2026-10-25",
-    "notes": "Sem scripts/bin: o lançador descarrega o binário do detetor na primeira utilização."
+    "notes": "No scripts/bin: the launcher downloads the detector binary on first use."
   },
   "ponytail": {
     "source": "https://github.com/DietrichGebert/ponytail",
     "license": "MIT",
     "version": "5.3.2",
     "updated": "2026-10-25",
-    "notes": "Só a skill. A injeção nos subagentes do estúdio é feita por hooks/subagent.js."
+    "notes": "Skill only. The injection into the studio subagents is done by hooks/subagent.js."
   },
   "graphify": {
     "source": "https://github.com/safishamsi/graphify",
     "license": "MIT OR Apache-2.0",
     "version": "0.9.11",
     "updated": "2026-10-25",
-    "notes": "Alterado: disable-model-invocation (só /studio:graphify). Na primeira utilização instala o pacote Python graphifyy."
+    "notes": "Changed: disable-model-invocation (only /studio:graphify). On first use it installs the graphifyy Python package."
   },
   "context7": {
     "source": "https://github.com/upstash/context7 (skills/context7-mcp)",
     "license": "MIT",
     "version": "master",
     "updated": "2026-10-25",
-    "notes": "Só a skill de uso do servidor MCP remoto declarado em .mcp.json; a CLI ctx7 (Node >= 22.13) não é usada."
+    "notes": "Only the skill for using the remote MCP server declared in .mcp.json; the ctx7 CLI (Node >= 22.13) is not used."
   },
   "humanizer": {
     "source": "https://github.com/blader/humanizer",
     "license": "MIT",
     "version": "3.0.0",
     "updated": "2026-10-25",
-    "notes": "Só a skill. Usada na entrega (README, delivery.md, docs para pessoas) e no report.md da auditoria; nunca em specs, planos ou outros contratos entre agentes."
+    "notes": "Skill only. Used on delivery (README, delivery.md, docs for people) and in the audit report.md; never on specs, plans or other contracts between agents."
   }
 }

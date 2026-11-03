@@ -196,7 +196,7 @@ The output in `evals/visual/out/` has `report.md`, `key.json` and `board.html`, 
 
 ### Updating bundled skills
 
-Read the new upstream code first, then run `node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <source-folder>`, bump the version in `plugins/studio/.claude-plugin/plugin.json`, run the evals, and commit.
+Read the new upstream code first, then run `node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <source-folder>`, bump the version in `plugins/studio/.claude-plugin/plugin.json`, run `node scripts/check-release.js`, run the evals, and commit.
 
 ### Tool decisions
 

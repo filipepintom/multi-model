@@ -48,7 +48,8 @@ test('check-release fails on an unknown skill folder and a non-executable launch
   const out = check(dir);
   assert.strictEqual(out.status, 1);
   assert.match(out.stdout, /stray/);
-  assert.match(out.stdout, /launcher/);
+  // no exec bit on Windows: the non-git launcher check does not apply there
+  if (process.platform !== 'win32') assert.match(out.stdout, /launcher/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 

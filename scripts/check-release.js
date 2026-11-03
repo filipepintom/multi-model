@@ -36,7 +36,8 @@ if (fs.existsSync(skillsDir)) {
 const launcher = 'plugins/studio/skills/impeccable/scripts/impeccable';
 const ls = spawnSync('git', ['-C', root, 'ls-files', '-s', launcher], { encoding: 'utf8' });
 const mode = ls.stdout && ls.stdout.split(' ')[0];
-if (mode ? mode !== '100755' : !(fs.existsSync(path.join(root, launcher)) && fs.statSync(path.join(root, launcher)).mode & 0o111)) {
+// Windows has no exec bit, so outside a checkout there is nothing to check there.
+if (mode ? mode !== '100755' : process.platform !== 'win32' && !(fs.existsSync(path.join(root, launcher)) && fs.statSync(path.join(root, launcher)).mode & 0o111)) {
   problems.push(`Impeccable launcher ${launcher} is not executable (git mode ${mode || 'untracked'})`);
 }
 

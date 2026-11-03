@@ -76,6 +76,7 @@ jobs:
           & cmd /d /c "`"$s\impeccable.cmd`" --version"
           if ($LASTEXITCODE -eq 0) { throw 'tampered pin was accepted' }
           "refused with exit $LASTEXITCODE"
+          exit 0
       - name: Guard maps Git Bash /c/ paths and runs verify in Git Bash
         shell: bash
         run: |

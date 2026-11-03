@@ -9,6 +9,22 @@ const path = require('node:path');
 const skill = fs.readFileSync(path.join(__dirname, '..', 'skills', 'graphify', 'SKILL.md'), 'utf8');
 const guard = skill.split('## Interpreter guard for subcommands')[1].match(/```bash\n([\s\S]*?)```/)[1];
 
+const win = process.platform === 'win32';
+// Git Bash cannot read C:\\... paths: hand it POSIX ones (cygpath is part of Git for Windows).
+const posix = (p) => (win ? spawnSync('cygpath', ['-u', p], { encoding: 'utf8' }).stdout.trim() : p);
+// PATH with the fake bin and only the utilities the guard needs, so no real python3 can be found.
+// On Windows symlinks are not available, and Git Bash's /usr/bin has no python3.
+function hermeticPath(root, bin) {
+  if (win) return `${posix(bin)}:/usr/bin:/bin`;
+  const util = path.join(root, 'util');
+  fs.mkdirSync(util, { recursive: true });
+  for (const c of ['bash', 'sh', 'head', 'tr', 'realpath', 'readlink', 'mkdir', 'cat', 'which', 'dirname']) {
+    const r = spawnSync('bash', ['-c', `command -v ${c}`], { encoding: 'utf8' }).stdout.trim();
+    if (r.startsWith('/') && !fs.existsSync(path.join(util, c))) fs.symlinkSync(r, path.join(util, c));
+  }
+  return `${bin}:${util}`;
+}
+
 function run(content, { fakeValid, inProject } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gguard-'));
   const dir = path.join(root, 'proj'); // the project; the trusted fake python lives outside it
@@ -17,17 +33,17 @@ function run(content, { fakeValid, inProject } = {}) {
   fs.mkdirSync(bin);
   fs.mkdirSync(path.join(dir, 'graphify-out'));
   // fake python: "import graphify" succeeds; any other -c writes the script's own path to the marker file
-  const py = path.join(bin, 'python3');
-  fs.writeFileSync(py, '#!/bin/sh\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
+  const py = posix(path.join(bin, 'python3'));
+  fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
   fs.writeFileSync(path.join(dir, 'evil.sh'), 'touch pwned\n');
   const file = path.join(dir, 'graphify-out', '.graphify_python');
   if (inProject) { // a python shipped inside the cloned project: validating it would execute it
     fs.mkdirSync(path.join(dir, 'tools'));
     fs.writeFileSync(path.join(dir, 'tools', 'python'), '#!/bin/sh\ntouch pwned\n', { mode: 0o755 });
-    content = path.join(dir, 'tools', 'python');
+    content = posix(path.join(dir, 'tools', 'python'));
   }
   fs.writeFileSync(file, fakeValid ? py : content);
-  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: `${bin}:/usr/bin:/bin` } });
+  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin) } });
   return { dir, py, file, after: fs.readFileSync(file, 'utf8') };
 }
 
@@ -61,7 +77,7 @@ function project() {
   return { root, dir, file: path.join(dir, 'graphify-out', '.graphify_python') };
 }
 
-test('guard: a project-local venv symlinked to an outside python is rejected unexecuted', () => {
+test('guard: a project-local venv symlinked to an outside python is rejected unexecuted', (t) => {
   const { root, dir, file } = project();
   const marker = path.join(root, 'marker');
   const real = path.join(root, 'real-python3');
@@ -69,14 +85,14 @@ test('guard: a project-local venv symlinked to an outside python is rejected une
   fs.mkdirSync(path.join(dir, '.venv', 'bin'), { recursive: true });
   fs.writeFileSync(path.join(dir, '.venv', 'pyvenv.cfg'), 'home = /usr/bin\n');
   const link = path.join(dir, '.venv', 'bin', 'python3');
-  fs.symlinkSync(real, link);
-  fs.writeFileSync(file, link);
+  try { fs.symlinkSync(real, link); } catch (e) { if (win) return t.skip(`no symlinks here: ${e.code}`); throw e; }
+  fs.writeFileSync(file, posix(link));
   const bin = path.join(root, 'bin');
   fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
-  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: `${bin}:/usr/bin:/bin` } });
+  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin) } });
   assert.ok(!fs.existsSync(marker));
-  assert.notStrictEqual(fs.readFileSync(file, 'utf8'), link);
+  assert.notStrictEqual(fs.readFileSync(file, 'utf8'), posix(link));
 });
 
 test('guard: import graphify is validated outside the project (a repo graphify.py does not run)', (t) => {
@@ -133,10 +149,10 @@ test('guard: a stored Python 3.10 is never run with -c and is re-resolved to a 3
   fs.writeFileSync(old, `#!/bin/sh\ncase "$1" in -V) echo Python 3.10.14; exit 0;; esac\ntouch "${marker}"\n`, { mode: 0o755 });
   const bin = path.join(root, 'bin');
   fs.mkdirSync(bin);
-  const good = path.join(bin, 'python3');
-  fs.writeFileSync(good, '#!/bin/sh\ncase "$1" in -V) echo Python 3.11.9; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
-  fs.writeFileSync(file, old);
-  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: `${bin}:/usr/bin:/bin` } });
+  const good = posix(path.join(bin, 'python3'));
+  fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.11.9; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
+  fs.writeFileSync(file, posix(old));
+  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: hermeticPath(root, bin) } });
   assert.ok(!fs.existsSync(marker));
   assert.strictEqual(fs.readFileSync(file, 'utf8'), good);
 });

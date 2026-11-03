@@ -50,3 +50,23 @@ test('check-release fails on an unknown skill folder and a non-executable launch
   assert.match(out.stdout, /launcher/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('check-release: a missing README is one problem line, not a stack trace', () => {
+  const dir = copy();
+  fs.rmSync(path.join(dir, 'README.md'));
+  const r = check(dir);
+  assert.strictEqual(r.status, 1);
+  assert.match(r.stdout, /README/);
+  assert.doesNotMatch(r.stderr, /at .*\(/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('check-release: a vendored skill with no README row is reported', () => {
+  const dir = copy();
+  const readme = path.join(dir, 'README.md');
+  fs.writeFileSync(readme, fs.readFileSync(readme, 'utf8').replace(/^\| \*\*Humanizer\*\* .*$/m, ''));
+  const r = check(dir);
+  assert.strictEqual(r.status, 1);
+  assert.match(r.stdout, /humanizer.*no README .*row/i);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

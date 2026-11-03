@@ -228,3 +228,50 @@ test('unreadable input lets the tool through', () => {
   const r = spawnSync(process.execPath, [GUARD], { input: 'not json', encoding: 'utf8' });
   assert.strictEqual(r.status, 0);
 });
+
+test('nested shells see assignments from the outer command', () => {
+  expect('allowed', 'Bash', [
+    `export DIR=build && bash -c 'rm -rf "$DIR"/*'`, `DIR=build bash -c 'rm -rf "$DIR"/*'`,
+    'for d in a b; do bash -c "rm -rf $d/*"; done', 'bash scripts/lint.sh -check "git push origin main"',
+    'rm -rf "$_"/*',
+  ]);
+  expect('blocked', 'Bash', [`bash -c 'rm -rf "$DIR"/*'`, 'rm -rf "$PWD"/*', '/usr/bin/env bash -c \'rm -rf /\'', '/usr/bin/env rm -rf ~']);
+});
+
+test('.env is matched case-insensitively', () => {
+  expect('blocked', 'Write', [{ file_path: '/p/.ENV', content: 'A=1' }, { file_path: '/p/.Env.local', content: 'A=1' }]);
+  expect('blocked', 'Bash', ['echo A=1 > .ENV', 'echo A=1 >> .Env.local']);
+  expect('allowed', 'Write', [{ file_path: '/p/.env.example', content: 'A=1' }, { file_path: '/p/.ENV.EXAMPLE', content: 'A=1' }]);
+});
+
+test('git is recognised by a quoted full path with spaces; @ names HEAD', () => {
+  expect('blocked', 'PowerShell', ['& "C:\\Program Files\\Git\\cmd\\git.exe" push origin main']);
+  expect('blocked', 'Bash', ['"/opt/my dir/git" push origin main']);
+  expect('blocked', 'Bash', ['"/opt/my dir/git" commit -m x'], dirs.red);
+  expect('blocked', 'Bash', ['git push origin @'], dirs.main);
+  expect('allowed', 'Bash', ['git push origin @ --dry-run'], dirs.feat);
+});
+
+test('verify shell: Git Bash on Windows when found, otherwise the default shell', () => {
+  const { verifyShell } = require(GUARD);
+  const has = (...ok) => (p) => ok.includes(p);
+  const env = { ProgramFiles: 'C:\\Program Files', 'ProgramFiles(x86)': 'C:\\Program Files (x86)' };
+  const pf = 'C:\\Program Files\\Git\\bin\\bash.exe';
+  assert.strictEqual(verifyShell('darwin', env, () => true), null);
+  assert.strictEqual(verifyShell('win32', env, has(pf)), pf);
+  assert.strictEqual(verifyShell('win32', env, has('C:\\Program Files (x86)\\Git\\bin\\bash.exe')), 'C:\\Program Files (x86)\\Git\\bin\\bash.exe');
+  assert.strictEqual(verifyShell('win32', { ...env, CLAUDE_CODE_GIT_BASH_PATH: 'D:\\gb\\bash.exe' }, has('D:\\gb\\bash.exe', pf)), 'D:\\gb\\bash.exe');
+  assert.strictEqual(verifyShell('win32', { ...env, CLAUDE_CODE_GIT_BASH_PATH: 'D:\\gone.exe' }, has(pf)), pf);
+  assert.strictEqual(verifyShell('win32', env, () => false), null);
+});
+
+test('a verify command is checked by the guard rules before it runs', () => {
+  const dir = repo('vbad');
+  fs.writeFileSync(path.join(dir, '.studio', 'verify'), 'git push origin main; node -e "require(\'fs\').writeFileSync(\'ran.marker2\',\'\')"');
+  const r = spawnSync(process.execPath, [GUARD], {
+    input: JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git commit --allow-empty -m x' }, cwd: dir }), encoding: 'utf8',
+  });
+  assert.strictEqual(r.status, 2, r.stderr);
+  assert.match(r.stderr, /\.studio\/verify/);
+  assert.ok(!fs.existsSync(path.join(dir, 'ran.marker2')), 'verify must not have run');
+});

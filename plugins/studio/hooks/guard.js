@@ -7,10 +7,11 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
+let blockPrefix = ''; // set while the rules run over .studio/verify, so the message names it
 function block(msg) {
-  process.stderr.write(`[studio guard] ${msg}\n`);
+  process.stderr.write(`[studio guard] ${blockPrefix}${msg}\n`);
   process.exit(2);
 }
 
@@ -67,7 +68,7 @@ function findSecret(text) {
   return null;
 }
 
-const isEnvFile = (p) => /^\.env(\..+)?$/.test(path.basename(p)) && !/\.(example|sample|template)$/.test(p);
+const isEnvFile = (p) => /^\.env(\..+)?$/i.test(path.basename(p)) && !/\.(example|sample|template)$/i.test(p);
 const ENV_MSG = (p) => `Writing to ${path.basename(p)} is blocked: secrets do not go into agent-managed files. Use .env.example with placeholder values.`;
 
 // ---- Command text
@@ -96,7 +97,7 @@ function parse(cmd) {
 
 // Index of the command word: the first token, after env assignments and wrappers such as sudo or xargs.
 // `echo rm -rf /` is text, not a delete.
-const PREFIX = /^(\w+=.*|sudo|env|command|builtin|exec|time|nohup|nice|xargs|if|then|else|do|while|until|[{!]|-\S+)$/;
+const PREFIX = /^(\w+=.*|sudo|(?:\S*[\\/])?env|command|builtin|exec|time|nohup|nice|xargs|if|then|else|do|while|until|[{!]|-\S+)$/;
 function commandAt(tokens, re) {
   for (let i = 0; i < tokens.length; i++) {
     if (re.test(tokens[i])) return i;
@@ -146,8 +147,8 @@ function checkDelete(tokens, text) {
     }
     const v = BARE_VAR.exec(t);
     const name = v && (v[1] || v[2]);
-    if (name && !assigns(text, name)) {
-      block(`Deleting \`${t}\` is blocked: each tool call is a fresh shell, so an unset $${name} turns this into /*. Set it in the same command, use \${${name}:?} in bash, or use a literal path.`);
+    if (name && name !== '_' && !assigns(text, name)) {
+      block(`Deleting \`${t}\` is blocked: it deletes everything under $${name}, and from / when $${name} is unset (each tool call is a fresh shell). Set it in the same command, use \${${name}:?} in bash, or use a literal path.`);
     }
   }
 }
@@ -178,7 +179,7 @@ function checkEnvWrite(tokens) {
 const GIT_VALUE_OPTS = /^(-c|-C|--git-dir|--work-tree|--namespace|--exec-path|--config-env)$/;
 
 function gitCall(tokens, dir) {
-  const i = commandAt(tokens, /^(?:\S*[\\/])?git(?:\.exe)?$/i);
+  const i = commandAt(tokens, /^(?:.*[\\/])?git(?:\.exe)?$/i); // a quoted path may hold spaces
   if (i < 0) return null;
   let j = i + 1;
   while (j < tokens.length && tokens[j].startsWith('-')) {
@@ -202,7 +203,7 @@ function checkPush(args, dir) {
       : rest.slice(1).map((r) => {
         const [src, dst] = r.split(':');
         const d = (dst ?? src) || current();
-        return d === 'HEAD' ? current() : d;
+        return d === 'HEAD' || d === '@' ? current() : d;
       });
   if (targets.some((t) => /^(refs\/heads\/)?(main|master)$/.test(t || ''))) {
     block('Push to main/master is blocked: delivery goes through the user\'s gate 2.');
@@ -210,7 +211,14 @@ function checkPush(args, dir) {
 }
 
 // Commit gate: .studio/verify must be green in the tree being committed (an implementer worktree, not the session folder).
-function checkCommit(args, dir, studioRoot) {
+// On Windows, verify lines are written for bash: use Git Bash when it is there. Pure, so it is testable anywhere.
+function verifyShell(platform, env, exists) {
+  if (platform !== 'win32') return null;
+  const found = [env.CLAUDE_CODE_GIT_BASH_PATH, ...[env.ProgramFiles, env['ProgramFiles(x86)']].filter(Boolean).map((d) => path.win32.join(d, 'Git', 'bin', 'bash.exe'))];
+  return found.find((f) => f && exists(f)) || null;
+}
+
+function checkCommit(args, dir, studioRoot, depth = 0) {
   if (args.includes('--dry-run')) return;
   const verifyFile = path.join(studioRoot, '.studio', 'verify');
   if (!fs.existsSync(verifyFile)) return;
@@ -219,11 +227,19 @@ function checkCommit(args, dir, studioRoot) {
   const top = git('rev-parse --show-toplevel', dir);
   // A toplevel above the studio root is a monorepo: verify stays in the studio folder.
   const runIn = top && !path.relative(real(studioRoot), real(top)).startsWith('..') ? real(top) : studioRoot;
+  // The verify line is a command like any other: it gets the same rules before it runs.
+  blockPrefix = '.studio/verify is blocked: ';
+  checkCommand(verify, runIn, depth + 1);
+  blockPrefix = '';
+  const bash = verifyShell(process.platform, process.env, fs.existsSync);
+  const shell = bash ? 'Git Bash' : process.platform === 'win32' ? 'cmd.exe' : 'sh';
+  const opts = { cwd: runIn, stdio: 'pipe', timeout: 9 * 60 * 1000 };
   try {
-    execSync(verify, { cwd: runIn, stdio: 'pipe', timeout: 9 * 60 * 1000 });
+    if (bash) execFileSync(bash, ['-c', verify], opts);
+    else execSync(verify, opts);
   } catch (err) {
     const out = `${err.stdout || ''}${err.stderr || ''}`.trim().split('\n').slice(-40).join('\n');
-    block(`Commit blocked: verification failed (\`${verify}\` in ${runIn}). Fix it before committing.\n${out}`);
+    block(`Commit blocked: verification failed (\`${verify}\` in ${runIn}, run with ${shell}). Fix it before committing.\n${out}`);
   }
 }
 
@@ -242,14 +258,22 @@ function innerScript(tokens) {
   }
   if (name === 'powershell' || name === 'pwsh') {
     const isCommand = (a) => a.length > 1 && '-command'.startsWith(a.toLowerCase());
-    const k = args.findIndex((a) => isCommand(a) || /^-file$/i.test(a));
-    return k < 0 || !isCommand(args[k]) ? null : args.slice(k + 1).join(' ');
+    const valued = /^-(ExecutionPolicy|WindowStyle|OutputFormat|InputFormat|ConfigurationName|Version|WorkingDirectory)$/i;
+    for (let k = 0; k < args.length; k++) {
+      if (isCommand(args[k])) return args.slice(k + 1).join(' ');
+      if (!args[k].startsWith('-')) return null; // a script path: what follows are its arguments
+      if (valued.test(args[k])) k++;
+    }
+    return null;
   }
-  const k = args.findIndex((a) => /^-[a-zA-Z]*c[a-zA-Z]*$/.test(a));
-  return k < 0 ? null : args[k + 1] ?? null;
+  for (let k = 0; k < args.length && /^[-+]/.test(args[k]); k++) { // flags only: after the script path, -c belongs to the script
+    if (/^-[a-zA-Z]*c[a-zA-Z]*$/.test(args[k])) return args[k + 1] ?? null;
+    if (/^[-+]o$/.test(args[k])) k++;
+  }
+  return null;
 }
 
-function checkCommand(cmd, cwd, depth = 0) {
+function checkCommand(cmd, cwd, depth = 0, outer = '') {
   if (depth > 3) return;
   const text = stripHeredocs(cmd);
   if (REMOTE_SCRIPT.some((re) => re.test(text))) {
@@ -260,10 +284,10 @@ function checkCommand(cmd, cwd, depth = 0) {
 
   let dir = path.resolve(cwd ? msysToNative(cwd) : process.cwd());
   for (const tokens of parse(text)) {
-    checkDelete(tokens, text);
+    checkDelete(tokens, `${outer}\n${text}`);
     checkEnvWrite(tokens);
     const inner = innerScript(tokens);
-    if (inner) checkCommand(inner, dir, depth + 1);
+    if (inner) checkCommand(inner, dir, depth + 1, `${outer}\n${text}`);
     if (/^(cd|chdir|pushd|Set-Location|sl)$/i.test(tokens[0])) {
       const target = tokens.slice(1).find((t) => !t.startsWith('-'));
       if (!target) dir = os.homedir();
@@ -275,7 +299,7 @@ function checkCommand(cmd, cwd, depth = 0) {
     const studioRoot = call && findStudioRoot(call.dir);
     if (!studioRoot) continue;
     if (call.sub === 'push') checkPush(call.args, call.dir);
-    if (call.sub === 'commit') checkCommit(call.args, call.dir, studioRoot);
+    if (call.sub === 'commit') checkCommit(call.args, call.dir, studioRoot, depth);
   }
 }
 
@@ -304,4 +328,4 @@ if (require.main === module) {
     }
     process.exit(0);
   });
-} else module.exports = { msysToNative };
+} else module.exports = { msysToNative, verifyShell };

@@ -300,3 +300,27 @@ test('PowerShell valued parameters match by abbreviation and alias', () => {
   ]);
   expect('allowed', 'PowerShell', ['pwsh -File x.ps1 -c "git push origin main"', 'pwsh x.ps1 -c "git push origin main"']);
 });
+
+test('the verify check runs verify once and never re-enters the commit gate', () => {
+  const count = (d) => { try { return fs.readFileSync(path.join(d, 'count'), 'utf8').length; } catch { return 0; } };
+  const commit = (d) => spawnSync(process.execPath, [GUARD], {
+    input: JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git commit --allow-empty -m x' }, cwd: d }), encoding: 'utf8',
+  });
+  const once = repo('vonce');
+  fs.writeFileSync(path.join(once, '.studio', 'verify'), 'printf x >> count && git commit --allow-empty -q -m v');
+  assert.strictEqual(commit(once).status, 0);
+  assert.strictEqual(count(once), 1, 'verify must run exactly once');
+  const bad = repo('vpush');
+  fs.writeFileSync(path.join(bad, '.studio', 'verify'), 'printf x >> count && git push origin main');
+  const r = commit(bad);
+  assert.strictEqual(r.status, 2);
+  assert.match(r.stderr, /\.studio\/verify is blocked/);
+  assert.strictEqual(count(bad), 0, 'nothing may run before the check');
+});
+
+test('eval shares the outer shell; export NAME exports an earlier assignment; -euo takes a value', () => {
+  expect('allowed', 'Bash', [
+    `X=build; eval 'rm -rf "$X"/*'`, `for d in a b; do eval 'rm -rf "$d"/*'; done`, `X=build; export X; bash -c 'rm -rf "$X"/*'`,
+  ]);
+  expect('blocked', 'Bash', [`eval 'rm -rf "$X"/*'`, `export Y; bash -c 'rm -rf "$X"/*'`, "bash -euo pipefail -c 'rm -rf /'", "bash -eo pipefail -c 'rm -rf /'"]);
+});

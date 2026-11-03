@@ -219,6 +219,7 @@ function verifyShell(platform, env, exists) {
 }
 
 function checkCommit(args, dir, studioRoot, depth = 0) {
+  if (blockPrefix) return; // already checking a verify line: never re-enter the gate
   if (args.includes('--dry-run')) return;
   const verifyFile = path.join(studioRoot, '.studio', 'verify');
   if (!fs.existsSync(verifyFile)) return;
@@ -276,7 +277,7 @@ function innerScript(tokens) {
   }
   for (let k = 0; k < args.length && /^[-+]/.test(args[k]); k++) { // flags only: after the script path, -c belongs to the script
     if (/^-[a-zA-Z]*c[a-zA-Z]*$/.test(args[k])) return args[k + 1] ?? null;
-    if (/^([-+][oO]|--rcfile|--init-file)$/.test(args[k])) k++;
+    if (/^([-+][a-zA-Z]*[oO]|--rcfile|--init-file)$/.test(args[k])) k++;
   }
   return null;
 }
@@ -285,9 +286,12 @@ function innerScript(tokens) {
 // assignments count (raw text is the only way to tell: parse drops the quotes). Otherwise only exported ones and prefix assignments.
 function inherited(tokens, text, inner, outer) {
   const all = `${outer}\n${text}`;
-  if (text.includes(`"${inner}`)) return all;
-  const exported = (all.match(/\b(?:export|declare\s+-\w*x\w*)\s+[^;&|\n]*/gi) || []).join('\n');
   const w = tokens.findIndex((t) => SHELL_CMD.test(t));
+  if (/^eval$/i.test(tokens[w]) || text.includes(`"${inner}`)) return all; // eval runs in the same shell
+  const frags = all.match(/\b(?:export|declare\s+-\w*x\w*)\s+[^;&|\n]*/gi) || [];
+  // `export X` exports an assignment of X made earlier
+  const names = frags.flatMap((f) => f.split(/\s+/).slice(1)).filter((n) => /^[A-Za-z_]\w*$/.test(n) && new RegExp(`\\b${n}=`).test(all));
+  const exported = [...frags, ...names.map((n) => `${n}=`)].join('\n');
   return `${exported}\n${tokens.slice(0, w).filter((t) => /^\w+=/.test(t)).join(' ')}`;
 }
 

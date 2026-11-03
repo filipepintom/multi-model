@@ -21,3 +21,10 @@ test('reverser (static): no runtime tool', () => {
   const bad = tools('reverser').filter((t) => /^mcp__rea__(capture_|observe_|start_frida|instrument_|gdb_|rizin_debug|install_adb)/.test(t));
   assert.deepStrictEqual(bad, []);
 });
+
+test('reviewer: the npx fallback is pinned to the bundled Impeccable version', () => {
+  const version = fs.readFileSync(path.join(__dirname, '..', 'skills', 'impeccable', 'SKILL.md'), 'utf8').match(/^version:\s*(\S+)/m)[1];
+  const reviewer = fs.readFileSync(path.join(__dirname, 'reviewer.md'), 'utf8');
+  assert.ok(reviewer.includes(`npx -y impeccable@${version}`));
+  assert.ok(!/npx impeccable(?!@)/.test(reviewer));
+});

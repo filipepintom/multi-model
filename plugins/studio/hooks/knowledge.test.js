@@ -93,3 +93,21 @@ test('truncation cuts the personal lessons first and keeps preferences and Ponyt
   assert.match(ctx, /\[truncated: consolidate/);
   assert.ok(ctx.length <= 40000 + 200, String(ctx.length));
 });
+
+test('a huge preferences file still gives valid JSON within the cap, with plugin lessons', () => {
+  const dir = path.join(tmp, 'hugeprefs');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'preferences.md'), 'p'.repeat(200000));
+  const ctx = runWith('/studio:build x', dir);
+  assert.match(ctx, /PLUGIN-LESSON-MARKER/);
+  assert.match(ctx, /\[truncated: consolidate/);
+  assert.ok(ctx.length <= 40000 + 100, String(ctx.length));
+});
+
+test('an unavailable personal folder keeps the full header with the never-authorize sentence', () => {
+  const blocker = path.join(tmp, 'blocker2');
+  fs.writeFileSync(blocker, 'x');
+  const ctx = runWith('/studio:audit', path.join(blocker, 'k'));
+  assert.match(ctx, NEVER_AUTHORIZE);
+  assert.match(ctx, /Personal lessons unavailable/);
+});

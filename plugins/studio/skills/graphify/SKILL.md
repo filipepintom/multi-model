@@ -69,13 +69,15 @@ This skill needs bash (on Windows, Git Bash, which Claude Code uses for its Bash
 
 ```bash
 export PYTHONSAFEPATH=1  # Python 3.11+: keep the project folder off sys.path for every call below
+# Accept only Python 3.11+: `-V` reads nothing from sys.path, and only 3.11+ honours PYTHONSAFEPATH
+_py311() { _V=$("$@" -V 2>&1) || return 1; case "$_V" in "Python 3."*) _M=${_V#Python 3.}; _M=${_M%%.*}; case "$_M" in ""|*[!0-9]*) return 1 ;; esac; [ "$_M" -ge 11 ] ;; *) return 1 ;; esac; }
 # Detect the correct Python interpreter (handles uv tool, pipx, venv, system installs)
 # Interpreter inside the uv tool env (POSIX bin/, Git Bash on Windows Scripts/), if graphify imports there
 _uv_py() {
     command -v uv >/dev/null 2>&1 || return 0
     _D=$(uv tool dir 2>/dev/null) || return 0
     for _P in "$_D/graphifyy/bin/python" "$_D/graphifyy/Scripts/python.exe"; do
-        if [ -x "$_P" ] && "$_P" -c "import graphify" 2>/dev/null; then echo "$_P"; return 0; fi
+        if [ -x "$_P" ] && _py311 "$_P" && "$_P" -c "import graphify" 2>/dev/null; then echo "$_P"; return 0; fi
     done
 }
 # Interpreter from the graphify binary's shebang (pipx and direct pip installs)
@@ -85,15 +87,15 @@ _shebang_py() {
     _SB=$(head -1 "$_BIN" | tr -d '#!')
     case "$_SB" in
         *[!a-zA-Z0-9/_.@-]*) ;;
-        *) "$_SB" -c "import graphify" 2>/dev/null && echo "$_SB" ;;
+        *) _py311 "$_SB" && "$_SB" -c "import graphify" 2>/dev/null && echo "$_SB" ;;
     esac
 }
 PYTHON=$(_uv_py)
 if [ -z "$PYTHON" ]; then PYTHON=$(_shebang_py); fi
-# Fall back to the first Python 3 on PATH: python3, python, then the Windows launcher
+# Fall back to the first Python 3.11+ on PATH: python3, python, then the Windows launcher
 if [ -z "$PYTHON" ]; then
     for _C in python3 python "py -3"; do
-        if $_C -c "import sys; sys.exit(sys.version_info[0] < 3)" 2>/dev/null; then
+        if _py311 $_C 2>/dev/null; then
             PYTHON=$($_C -c "import sys; print(sys.executable)"); break
         fi
     done
@@ -108,7 +110,7 @@ if [ -z "$PYTHON" ] || ! "$PYTHON" -c "import graphify" 2>/dev/null; then
           || "$PYTHON" -m pip install graphifyy==0.9.11 -q --break-system-packages 2>&1 | tail -3
     fi
 fi
-if [ -z "$PYTHON" ]; then echo "No Python 3 found. Install Python 3 or uv, then run again." >&2; exit 1; fi
+if [ -z "$PYTHON" ]; then echo "graphify in studio needs Python 3.11+ (3.10 is end of life and cannot keep the project folder off sys.path)" >&2; exit 1; fi
 # Write interpreter path for all subsequent steps (persists across invocations)
 mkdir -p graphify-out
 "$PYTHON" -c "import sys; open('graphify-out/.graphify_python', 'w', encoding='utf-8').write(sys.executable)"
@@ -118,7 +120,7 @@ echo "$(cd "INPUT_PATH" && pwd)" > graphify-out/.graphify_root
 
 If the import succeeds, print nothing and move straight to Step 2.
 
-**In every subsequent bash block, replace `python3` with `"$(cat graphify-out/.graphify_python)"` to use the correct interpreter.** The blocks set `PYTHONSAFEPATH=1` so Python 3.11+ does not put the project folder on `sys.path` (a `graphify.py` shipped in a cloned repo would otherwise run); Python 3.10 ignores it and is not covered.
+**In every subsequent bash block, replace `python3` with `"$(cat graphify-out/.graphify_python)"` to use the correct interpreter.** The blocks set `PYTHONSAFEPATH=1` so Python does not put the project folder on `sys.path` (a `graphify.py` shipped in a cloned repo would otherwise run). Only Python 3.11+ honours it, so Step 1 and the guard accept nothing older.
 
 ### Step 2 - Detect files
 
@@ -638,10 +640,12 @@ The graph is the map. Your job after the pipeline is to be the guide.
 
 ## Interpreter guard for subcommands
 
-Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`; `python3.13t` and Windows paths such as `C:\Python312\python.exe` are accepted), when the file or its folder (a venv symlink included) is inside the current project (including `graphify-out/`), which is never executed, or when `"$P" -c "import graphify"` fails (run from `/`, so a `graphify.py` in the project is not imported):
+Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check `.graphify_python`. The file may come from a cloned repository, so it is not trusted as is: re-resolve the interpreter when the file is missing (e.g. user deleted `graphify-out/`), when its content is not an absolute path to an existing file named `python`, `python3`, `python3.12`… (optionally `.exe`; `python3.13t` and Windows paths such as `C:\Python312\python.exe` are accepted), when the file or its folder (a venv symlink included) is inside the current project (including `graphify-out/`), which is never executed, or when `"$P" -V` reports less than 3.11, or when `"$P" -c "import graphify"` fails (run from `/`, so a `graphify.py` in the project is not imported):
 
 ```bash
 export PYTHONSAFEPATH=1
+# Accept only Python 3.11+: `-V` reads nothing from sys.path, and only 3.11+ honours PYTHONSAFEPATH
+_py311() { _V=$("$@" -V 2>&1) || return 1; case "$_V" in "Python 3."*) _M=${_V#Python 3.}; _M=${_M%%.*}; case "$_M" in ""|*[!0-9]*) return 1 ;; esac; [ "$_M" -ge 11 ] ;; *) return 1 ;; esac; }
 P=$(head -1 graphify-out/.graphify_python 2>/dev/null | tr -d '\r')
 case "$P" in /*|[A-Za-z]:[\\/]*) ;; *) P="" ;; esac
 N=$(printf %s "$P" | tr '\\' '/'); N="${N##*/}"; N="${N%.exe}"
@@ -655,6 +659,7 @@ if [ -n "$P" ]; then
     case "$RP" in "$RD"/*) P="" ;; esac
     case "$PD/" in "$RD"/*) P="" ;; esac
 fi
+if [ -n "$P" ] && ! _py311 "$P"; then P=""; fi
 if [ -n "$P" ] && ! (cd / && "$P" -c "import graphify") >/dev/null 2>&1; then P=""; fi
 if [ -z "$P" ]; then
     GRAPHIFY_BIN=$(which graphify 2>/dev/null)
@@ -664,6 +669,7 @@ if [ -z "$P" ]; then
     else
         PYTHON="python3"
     fi
+    if ! _py311 "$PYTHON"; then echo "graphify in studio needs Python 3.11+ (3.10 is end of life and cannot keep the project folder off sys.path)" >&2; exit 1; fi
     mkdir -p graphify-out
     "$PYTHON" -c "import sys; open('graphify-out/.graphify_python', 'w', encoding='utf-8').write(sys.executable)"
 fi

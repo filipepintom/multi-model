@@ -62,8 +62,8 @@ function readJson(file) {
   const py = [['python', ['--version']], ['python3', ['--version']], ['py', ['-3', '--version']]]
     .map(([c, a]) => ({ c, a, r: run(c, a) })).find((x) => x.r.ok && /Python 3/.test(x.r.out));
   const v = py && version(py.r.out);
-  add('optional', 'Python 3.10+ (graphify)', atLeast(v, [3, 10, 0]) ? 'ok' : 'warn', py ? py.r.out : 'not found',
-    'Only needed for /studio:graphify. Install Python 3.10+ and uv (https://docs.astral.sh/uv/).');
+  add('optional', 'Python 3.11+ (graphify)', atLeast(v, [3, 11, 0]) ? 'ok' : 'warn', py ? py.r.out : 'not found',
+    'Only needed for /studio:graphify. Install Python 3.11+ and uv (https://docs.astral.sh/uv/).');
   // Same installers as skills/graphify/SKILL.md Step 1: uv, or `<python> -m pip` for the Python found above.
   const installer = run('uv', ['--version']).ok ? 'uv' : py && run(py.c, [...py.a.slice(0, -1), '-m', 'pip', '--version']).ok ? 'pip' : null;
   add('optional', 'uv / pip (graphify installer)', installer ? 'ok' : 'warn', installer || 'none found',

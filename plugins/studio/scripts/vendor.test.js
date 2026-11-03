@@ -104,7 +104,7 @@ echo "$@" >> "${calls}"
 if [ "$1 $2" = "tool dir" ]; then echo "${tools}"; exit 0; fi
 if [ "$1 $2" = "tool install" ]; then
   mkdir -p "${tools}/graphifyy/bin"
-  printf '#!/bin/bash\\ncase "$*" in *"open("*) printf "%%s" "$0" > graphify-out/.graphify_python;; esac\\nexit 0\\n' > "${tools}/graphifyy/bin/python"
+  printf '#!/bin/bash\\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\\ncase "$*" in *"open("*) printf "%%s" "$0" > graphify-out/.graphify_python;; esac\\nexit 0\\n' > "${tools}/graphifyy/bin/python"
   chmod +x "${tools}/graphifyy/bin/python"
 fi
 exit 0
@@ -117,3 +117,32 @@ exit 0
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+for (const [ver, ok] of [['3.10.14', false], ['3.11.2', true]]) {
+  test(`Step 1 with a python3 reporting ${ver}: ${ok ? 'proceeds' : 'exits 1 and never runs -c'}`, { skip: process.platform === 'win32' }, () => {
+    const block = skill.split('### Step 1')[1].split('### Step 2')[0].match(/```bash\n([\s\S]*?)```/)[1].replace('INPUT_PATH', '.');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'step1-ver-'));
+    try {
+      const bin = path.join(tmp, 'bin');
+      const work = path.join(tmp, 'work');
+      for (const d of [bin, work]) fs.mkdirSync(d);
+      for (const c of ['bash', 'which', 'head', 'tr', 'tail', 'mkdir', 'cat', 'pwd', 'dirname']) {
+        const r = spawnSync('bash', ['-c', `command -v ${c}`], { encoding: 'utf8' }).stdout.trim();
+        if (r) fs.symlinkSync(r, path.join(bin, c));
+      }
+      const marker = path.join(tmp, 'marker');
+      fs.writeFileSync(path.join(bin, 'python3'), `#!/bin/bash\ncase "$1" in -V) echo Python ${ver}; exit 0;; esac\n: > "${marker}"\ncase "$*" in *"print(sys.executable)"*) echo "$0";; esac\ncase "$*" in *"open("*) printf "%s" "$0" > graphify-out/.graphify_python;; esac\nexit 0\n`, { mode: 0o755 });
+      const r = spawnSync(path.join(bin, 'bash'), ['-c', block], { cwd: work, env: { PATH: bin, HOME: tmp }, encoding: 'utf8', timeout: 20000 });
+      if (ok) {
+        assert.strictEqual(r.status, 0, r.stderr);
+        assert.ok(fs.existsSync(marker));
+      } else {
+        assert.strictEqual(r.status, 1);
+        assert.match(r.stderr, /graphify in studio needs Python 3\.11\+ \(3\.10 is end of life and cannot keep the project folder off sys\.path\)/);
+        assert.ok(!fs.existsSync(marker));
+      }
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+}

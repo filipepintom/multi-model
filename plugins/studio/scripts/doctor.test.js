@@ -43,7 +43,7 @@ function stubTool(bin, name, body) {
   fs.writeFileSync(path.join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
 }
 
-function sandbox({ pip = true, pipx = false, uv = false } = {}) {
+function sandbox({ pip = true, pipx = false, uv = false, py = '3.12.0' } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-fake-'));
   const home = path.join(tmp, 'home');
   const cfg = path.join(tmp, 'cfg');
@@ -51,7 +51,7 @@ function sandbox({ pip = true, pipx = false, uv = false } = {}) {
   for (const d of [home, cfg, bin]) fs.mkdirSync(d);
   const stub = path.join(tmp, 'stub.js');
   fs.writeFileSync(stub, "globalThis.fetch = () => Promise.reject(new Error('offline'));\n");
-  stubTool(bin, 'python', `case "$1" in -m) ${pip ? 'echo pip 24.0; exit 0' : 'exit 1'};; esac\necho Python 3.12.0`);
+  stubTool(bin, 'python', `case "$1" in -m) ${pip ? 'echo pip 24.0; exit 0' : 'exit 1'};; esac\necho Python ${py}`);
   if (pipx) stubTool(bin, 'pipx', 'echo 1.7.0');
   if (uv) stubTool(bin, 'uv', 'echo uv 0.5.0');
   const doctor = () => {
@@ -141,4 +141,15 @@ test('graphify installer: pipx alone warns and asks for uv; python -m pip is ok'
   } finally { s.done(); }
   s = sandbox({ pip: true });
   try { assert.equal(row(s.doctor(), /^uv/).status, 'ok'); } finally { s.done(); }
+});
+
+test('doctor: Python 3.10 warns, 3.11 is ok', { skip: win }, () => {
+  for (const [py, status] of [['3.10.14', 'warn'], ['3.11.0', 'ok']]) {
+    const s = sandbox({ py });
+    try {
+      const r = row(s.doctor(), /^Python/);
+      assert.equal(r.name, 'Python 3.11+ (graphify)');
+      assert.equal(r.status, status);
+    } finally { s.done(); }
+  }
 });

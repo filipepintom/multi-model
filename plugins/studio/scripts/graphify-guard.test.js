@@ -18,7 +18,7 @@ function run(content, { fakeValid, inProject } = {}) {
   fs.mkdirSync(path.join(dir, 'graphify-out'));
   // fake python: "import graphify" succeeds; any other -c writes the script's own path to the marker file
   const py = path.join(bin, 'python3');
-  fs.writeFileSync(py, '#!/bin/sh\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
+  fs.writeFileSync(py, '#!/bin/sh\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
   fs.writeFileSync(path.join(dir, 'evil.sh'), 'touch pwned\n');
   const file = path.join(dir, 'graphify-out', '.graphify_python');
   if (inProject) { // a python shipped inside the cloned project: validating it would execute it
@@ -71,7 +71,10 @@ test('guard: a project-local venv symlinked to an outside python is rejected une
   const link = path.join(dir, '.venv', 'bin', 'python3');
   fs.symlinkSync(real, link);
   fs.writeFileSync(file, link);
-  spawnSync('bash', ['-c', guard], sh(dir));
+  const bin = path.join(root, 'bin');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\ncase "$1" in -V) echo Python 3.12.0; exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
+  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: `${bin}:/usr/bin:/bin` } });
   assert.ok(!fs.existsSync(marker));
   assert.notStrictEqual(fs.readFileSync(file, 'utf8'), link);
 });
@@ -120,4 +123,20 @@ test('Step 1 and the guard export PYTHONSAFEPATH=1 before the first interpreter 
     const lines = block.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'));
     assert.match(lines[0], /^export PYTHONSAFEPATH=1(\s|$)/);
   }
+});
+
+test('guard: a stored Python 3.10 is never run with -c and is re-resolved to a 3.11+ python', () => {
+  const { root, dir, file } = project();
+  const marker = path.join(root, 'marker');
+  const old = path.join(root, 'old', 'python3');
+  fs.mkdirSync(path.dirname(old));
+  fs.writeFileSync(old, `#!/bin/sh\ncase "$1" in -V) echo Python 3.10.14; exit 0;; esac\ntouch "${marker}"\n`, { mode: 0o755 });
+  const bin = path.join(root, 'bin');
+  fs.mkdirSync(bin);
+  const good = path.join(bin, 'python3');
+  fs.writeFileSync(good, '#!/bin/sh\ncase "$1" in -V) echo Python 3.11.9; exit 0;; esac\ncase "$2" in *"import graphify"*) exit 0;; esac\nprintf %s "$0" > graphify-out/.graphify_python\n', { mode: 0o755 });
+  fs.writeFileSync(file, old);
+  spawnSync('bash', ['-c', guard], { cwd: dir, env: { PATH: `${bin}:/usr/bin:/bin` } });
+  assert.ok(!fs.existsSync(marker));
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), good);
 });

@@ -1,0 +1,27 @@
+# Verdicts (phase 6)
+
+- F18 plausible, low. Deliberate trade-off: reverser-live has no Bash; consoles gated by --runtime + approved run list; Frida gives the same power. Residual: prompt injection steering a console command; REA schemas not loaded to confirm shell escapes.
+- F25 confirmed, low. Line 37 (also 51, 66, 79, 93): rmSync before source read; reproduced in temp copy with nonexistent source → ponytail folder left empty. Recoverable via git. context7 "master" hard-coded at vendor.js:73.
+- F9 confirmed, low (from medium). Line 201/207. Reproduced: marker created from .studio/verify on `git commit`. Threat narrow (repo shipping .studio/ + commit there); impact like running a git hook; F16→F9 is the plausible route.
+- F10 plausible, low (from medium). Fail-closed: false "Commit blocked" on Windows for bash-syntax verify lines; code trace + documented Node ComSpec default.
+- F11 confirmed, low (from medium). Reproduced: bash -c/sh -c/cmd /c/powershell -Command/heredoc/eval deletes, force push and `bash -c "git commit"` with red verify all exit 0. Secret/remote checks still run on raw text.
+- F12 confirmed, low (from medium). Unknown variables inherent to a text check; fixable gaps: ${env:USERPROFILE}, %SystemDrive%. Reproduced.
+- F13 plausible, medium. path.win32.resolve('C:\Users\me\proj','/c/Users/me/proj') → C:\c\Users\me\proj; no .studio found; push/commit rules skipped. Needs a real Windows host for the last step.
+- F19 confirmed, low. .ENV/.Env pass for Write and shell redirects; only deliberate evasion.
+- F5 confirmed, low (from medium). Reproduced: fresh HOME → "not created yet" and no allow-rule row; fallback dir ignored; studio-kit-acme picked over studio-multi-model by readdir order. Consequence: retro asks once.
+- F16 plausible, medium. retro/SKILL.md:16 reads repo docs/studio files with no untrusted-data caveat; writes up to 3 lessons (:44, :50); knowledge.js:58 injects them with priority; silent with setup's allow rule; final summary names only one. Model compliance not tested.
+- F17 confirmed, low (from medium). Line 53. Reproduced: read-only STUDIO_KNOWLEDGE_DIR → 0 bytes output; 39k lessons → preferences and Ponytail cut.
+- F21 confirmed, low. Reproduced: context7 skill, graphify plugin and context7 MCP all missed.
+- F22 confirmed, low. Reproduced: rea in $CLAUDE_CONFIG_DIR/.claude.json or projects scope → "not registered"; fix text lacks -y/--client/--dry-run.
+- F23 confirmed, low. Reproduced: only pipx → ✅; skill has no pipx install branch.
+- F6 confirmed, medium. Reworded: first run fails as written on macOS/Linux (no pwsh; Step 2 rc 127 reproduced); Windows works with caveats (5.1 BOM, spaces). CS2 = CW6.
+- F7 confirmed, low (from medium). Reproduced: marker created from a planted .graphify_python. Needs an untrusted repo shipping graphify-out/ and an approved `$(...)` Bash call.
+- F8 confirmed, medium. Only ponytail, context7-mcp, humanizer ship LICENSE; Impeccable (Apache-2.0), graphify and modern-screenshot.umd.js have none; studio has no licence. Upstream NOTICE not checked (no network).
+- F15 plausible, low (from medium). Reworded: detector version pinned (VERSION 0.1.16) and fails closed on hash mismatch, but the hash comes from the same release; graphifyy and `npx impeccable` unpinned.
+- F20 confirmed, low. Reproduced: `git push origin @` rc 0 on main; quoted git path with a space rc 0 for push and commit.
+- F24 confirmed, low. git check-ignore confirms plugins/studio/knowledge/newfile.md ignored by .gitignore:6.
+- F1 confirmed, high. Root cause is the git mode of skills/impeccable/scripts/impeccable:1 (100644 since 1173744). Fresh clone: hook command rc 126, with `|| true` rc 0; doctor run() → EACCES, detail ''.
+- F2 plausible, medium. Claude Code 2.1.302 binary: hooks run in Git Bash if found else PowerShell; POSIX syntax fails there; SessionStart/PostToolUse/Stop are non-blocking, so error noise + dead detector; doctor tests .cmd which no hook uses.
+- F3 plausible, low (from medium). noBash rule makes PreToolUse failures blocking when Git Bash is absent; needs both Git Bash and Node missing; loud failure.
+- F4 confirmed, low (from medium). r.error ignored (reproduced EACCES → ''); shell:true splits a path with a space (reproduced rc 127 on macOS, DEP0190). Keep shell for .cmd (CVE-2024-27980), quote the path.
+- F14 refuted. Claude Code sets NoDefaultCurrentDirectoryInExePath=1 for its process tree and hook/Bash children, so cmd.exe does not run planted git.bat/python.bat from cwd. Residual only for manual `node doctor.js` from a plain terminal.

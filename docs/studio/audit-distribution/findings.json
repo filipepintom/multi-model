@@ -1,0 +1,565 @@
+[
+  {
+    "id": "F1",
+    "lens": "correctness",
+    "title": "Impeccable launcher ships without the executable bit: detector hooks never run on macOS/Linux and doctor blames the network",
+    "severity": "high",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/skills/impeccable/scripts/impeccable",
+    "line": 1,
+    "end_line": 1,
+    "related": [
+      {
+        "file": "plugins/studio/hooks/hooks.json",
+        "line": 31
+      },
+      {
+        "file": "plugins/studio/hooks/hooks.json",
+        "line": 65
+      },
+      {
+        "file": "plugins/studio/hooks/hooks.json",
+        "line": 76
+      },
+      {
+        "file": "plugins/studio/scripts/doctor.js",
+        "line": 74
+      }
+    ],
+    "evidence": "git ls-files -s → 100644 …/impeccable; hooks.json:31 IMPECCABLE_NO_TELEMETRY=1 \"${CLAUDE_PLUGIN_ROOT}/skills/impeccable/scripts/impeccable\" hook || true",
+    "scenario": "Fresh git clone → launcher -rw-r--r--; hook command → Permission denied rc 126, `|| true` → rc 0; doctor run() → EACCES, detail empty, fix \"needs network\"",
+    "impact": "No macOS/Linux user gets the design detector after UI edits; setup points at the wrong cause",
+    "fix": "git update-index --chmod=+x on the launcher and bump the version; defensively call it through sh (or the node wrapper in F2); show r.error.code in doctor",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 1,
+    "score": 5,
+    "request": "Make the bundled Impeccable launcher run on macOS/Linux installs: set its git executable bit (plugins/studio/skills/impeccable/scripts/impeccable is 100644) or call it through sh from hooks.json:31/65/76 and doctor.js:74, and make doctor report the spawn error code. First a test that reproduces the problem and fails. (a test that runs the hook command against a fresh clone and expects it not to fail with EACCES)",
+    "verifier_reason": "Fresh clone: rc 126 hidden by || true; doctor run() returned EACCES with empty output"
+  },
+  {
+    "id": "F2",
+    "lens": "correctness",
+    "title": "On Windows without Git Bash the three Impeccable hooks are bash syntax that PowerShell cannot run; doctor tests impeccable.cmd, which no hook uses",
+    "severity": "medium",
+    "confidence": "medium",
+    "verdict": "plausible",
+    "file": "plugins/studio/hooks/hooks.json",
+    "line": 31,
+    "end_line": 31,
+    "related": [
+      {
+        "file": "plugins/studio/hooks/hooks.json",
+        "line": 65
+      },
+      {
+        "file": "plugins/studio/hooks/hooks.json",
+        "line": 76
+      },
+      {
+        "file": "plugins/studio/scripts/doctor.js",
+        "line": 69
+      }
+    ],
+    "evidence": "\"command\": \"IMPECCABLE_NO_TELEMETRY=1 \\\"${CLAUDE_PLUGIN_ROOT}/skills/impeccable/scripts/impeccable\\\" hook || true\"",
+    "scenario": "Windows 11, native Claude Code, no Git for Windows → hooks run in PowerShell (Claude Code 2.1.302: Git Bash if found, else PowerShell) → `VAR=1 cmd` / `|| true` fail → hook error after every edit, detector never runs; doctor runs impeccable.cmd and can say ok",
+    "impact": "Windows users without Git Bash get no detector, error noise on every edit, and a clean setup report",
+    "fix": "One node wrapper (hooks/impeccable.js) in exec form that sets IMPECCABLE_NO_TELEMETRY, runs impeccable.cmd on win32 and `sh impeccable` elsewhere, always exits 0; doctor calls the same wrapper and reports whether Git Bash exists on Windows",
+    "effort": "M",
+    "mode": "fast",
+    "priority": 2,
+    "score": 0.9,
+    "request": "Replace the three Impeccable hook commands in plugins/studio/hooks/hooks.json (:31, :65, :76) with one cross-platform node wrapper in exec form that picks impeccable.cmd on Windows and `sh impeccable` elsewhere and always exits 0; make doctor.js test that same wrapper and report Git Bash on Windows. First a test that reproduces the problem and fails.",
+    "verifier_reason": "Traced in the Claude Code 2.1.302 binary (shell choice, ${env:CLAUDE_PLUGIN_ROOT} rewrite); PowerShell not run"
+  },
+  {
+    "id": "F6",
+    "lens": "correctness",
+    "title": "Vendored graphify skill has a PowerShell-only Step 1 followed by bash steps: the first /studio:graphify fails as written on macOS/Linux",
+    "severity": "medium",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/skills/graphify/SKILL.md",
+    "line": 68,
+    "end_line": 133,
+    "related": [
+      {
+        "file": "plugins/studio/skills/graphify/SKILL.md",
+        "line": 648
+      },
+      {
+        "file": "scripts/vendor.js",
+        "line": 91
+      }
+    ],
+    "evidence": "Step 1 ```powershell … Out-File graphify-out\\.graphify_python; Step 2 ```bash $(cat graphify-out/.graphify_python) -c \"…\"",
+    "scenario": "macOS without pwsh → Step 1 cannot run → Step 2 `$(cat graphify-out/.graphify_python)` rc 127; on Windows 5.1 Out-File utf8 writes a BOM that breaks the later bash steps",
+    "impact": "/studio:graphify only works if the model rewrites the documented install; graphifyy installed unpinned",
+    "fix": "Re-vendor from upstream POSIX skill (keep the Windows variant as a reference), pin graphifyy==0.9.11, and make vendor.js fail when a SKILL.md mixes ```powershell and ```bash",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 3,
+    "score": 3,
+    "request": "Make plugins/studio/skills/graphify/SKILL.md runnable as written on macOS/Linux and Windows: Step 1 (:68-123) is PowerShell-only while later steps are bash; pin graphifyy to the vendored 0.9.11; add a vendor.js check against mixed shell dialects. First a test that reproduces the problem and fails. (a script test that extracts Step 1 and Step 2 and runs them in bash in a temp dir)",
+    "verifier_reason": "Reproduced Step 2 failure rc 127 with no .graphify_python"
+  },
+  {
+    "id": "F8",
+    "lens": "correctness",
+    "title": "Licence texts missing for Impeccable (Apache-2.0), graphify and modern-screenshot; studio itself has no licence",
+    "severity": "medium",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/THIRD_PARTY_NOTICES.md",
+    "line": 7,
+    "end_line": 11,
+    "related": [
+      {
+        "file": "plugins/studio/skills/impeccable/scripts/modern-screenshot.umd.js",
+        "line": 1
+      },
+      {
+        "file": "scripts/vendor.js",
+        "line": 38
+      },
+      {
+        "file": "plugins/studio/.claude-plugin/plugin.json",
+        "line": 1
+      }
+    ],
+    "evidence": "| Impeccable | skills/impeccable/ | … | Apache-2.0 | (only ponytail, context7-mcp, humanizer ship a LICENSE)",
+    "scenario": "Distributing the plugin gives recipients ~57 Apache-2.0 files without the licence (§4a) and graphify/modern-screenshot without their notices; no rights granted for studio code",
+    "impact": "Distribution breaks two vendored licences and leaves studio unlicensed",
+    "fix": "Copy LICENSE (and NOTICE if any) for impeccable and graphify in vendor.js; credit modern-screenshot; add a root LICENSE and `license` in plugin.json",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 4,
+    "score": 3,
+    "request": "Ship the missing licence texts: Impeccable (Apache-2.0, plus NOTICE if upstream has one), graphify and modern-screenshot.umd.js, copied by scripts/vendor.js like the others; add a LICENSE for studio and `license` in plugin.json. First a test that reproduces the problem and fails. (a test that every vendor.json entry has a licence file in its folder)",
+    "verifier_reason": "find/git ls-files: LICENSE only in 3 of 5 vendored skills; bundle has no header"
+  },
+  {
+    "id": "F13",
+    "lens": "correctness",
+    "title": "Git Bash drive paths (/c/...) in cd and git -C resolve to the wrong folder on Windows, so push and commit rules are skipped",
+    "severity": "medium",
+    "confidence": "medium",
+    "verdict": "plausible",
+    "file": "plugins/studio/hooks/guard.js",
+    "line": 229,
+    "end_line": 229,
+    "related": [
+      {
+        "file": "plugins/studio/hooks/guard.js",
+        "line": 169
+      }
+    ],
+    "evidence": "dir = path.resolve(dir, target.replace(/^~(?=$|[\\\\/])/, os.homedir()));",
+    "scenario": "Windows + Git Bash, studio project C:\\Users\\me\\proj on branch feature: `cd /c/Users/me/proj && git push origin main` → path.win32.resolve gives C:\\c\\Users\\me\\proj → no .studio → push to main allowed; same for commit gate",
+    "impact": "Studio push/commit rules silently off on Windows when the agent uses MSYS paths",
+    "fix": "On win32 map ^/([a-zA-Z])(/|$) (and /cygdrive/x/, /mnt/x/) to X:/ before path.resolve at :169 and :229",
+    "effort": "S",
+    "mode": "full",
+    "priority": 5,
+    "score": 1.8,
+    "request": "In plugins/studio/hooks/guard.js (:169, :229), translate Git Bash/MSYS drive paths (/c/..., /cygdrive/c/...) to Windows paths before resolving cd and git -C targets, so .studio is found and the push and commit rules apply. First a test that reproduces the problem and fails.",
+    "verifier_reason": "path.win32.resolve reproduced; last step needs a Windows host"
+  },
+  {
+    "id": "F16",
+    "lens": "security",
+    "title": "Retro can promote text from repo-supplied docs/studio files into personal lessons that are injected, with priority, into every later build/audit/retro",
+    "severity": "medium",
+    "confidence": "medium",
+    "verdict": "plausible",
+    "file": "plugins/studio/skills/retro/SKILL.md",
+    "line": 16,
+    "end_line": 16,
+    "related": [
+      {
+        "file": "plugins/studio/skills/retro/SKILL.md",
+        "line": 44
+      },
+      {
+        "file": "plugins/studio/hooks/knowledge.js",
+        "line": 58
+      },
+      {
+        "file": "plugins/studio/skills/setup/SKILL.md",
+        "line": 37
+      }
+    ],
+    "evidence": "knowledge.js:58 \"On conflict, the personal lesson wins for this user.\" + retro reads docs/studio/<slug>/*.md and writes up to 3 lessons",
+    "scenario": "A cloned repo ships docs/studio/x/review.md with a crafted \"lesson\"; the user runs /studio:retro there; with setup's allow rule the write is silent and the summary names only one lesson → the text is injected into every future build in every project",
+    "impact": "One poisoned repository becomes a lasting instruction across all projects (e.g. to write .studio/verify, chain with F9)",
+    "fix": "Retro treats docs/studio files as data, promotes only from builds this user ran, and shows every new personal lesson before writing; drop \"personal wins\" wording from the injected header or frame lessons as data",
+    "effort": "S",
+    "mode": "full",
+    "priority": 6,
+    "score": 1.8,
+    "request": "Harden /studio:retro (plugins/studio/skills/retro/SKILL.md :16, :44) so lessons from repo-supplied docs/studio files are treated as data, never promoted without showing each one to the user, and only from builds this user ran; reword the injected header in hooks/knowledge.js:58. First a test that reproduces the problem and fails. (an eval with a planted lesson in review.md)",
+    "verifier_reason": "Code trace; model compliance not tested"
+  },
+  {
+    "id": "F3",
+    "lens": "correctness",
+    "title": "On Windows without Git Bash, a guard hook that cannot start (no Node) blocks every Bash/PowerShell/Write/Edit call",
+    "severity": "low",
+    "confidence": "medium",
+    "verdict": "plausible",
+    "file": "plugins/studio/hooks/hooks.json",
+    "line": 43,
+    "end_line": 53,
+    "related": [
+      {
+        "file": "plugins/studio/hooks/guard.js",
+        "line": 4
+      }
+    ],
+    "evidence": "\"command\": \"node \\\"${CLAUDE_PLUGIN_ROOT}/hooks/guard.js\\\"\" (no onFailure, no args)",
+    "scenario": "Windows, no Git Bash, Node not yet installed → PowerShell `node` not found exit 1 → Claude Code noBash rule turns PreToolUse failure into blocking → every tool call denied, message says install Git for Windows",
+    "impact": "A new Windows user is locked out of editing tools, contradicting the guard's fail-open design",
+    "fix": "Add \"onFailure\": \"continue\" or use exec form {\"command\":\"node\",\"args\":[...]} on both guard entries (same PR as F2)",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 7,
+    "score": 0.6,
+    "request": "Make the guard hooks in plugins/studio/hooks/hooks.json (:43, :53) fail open on Windows without Git Bash by using exec form or onFailure:\"continue\". First a test that reproduces the problem and fails.",
+    "verifier_reason": "Traced noBash classification and blocking in the 2.1.302 binary"
+  },
+  {
+    "id": "F4",
+    "lens": "correctness",
+    "title": "doctor run() drops the spawn error (blank detail) and passes an unquoted path to cmd.exe (Windows profile with a space)",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/scripts/doctor.js",
+    "line": 25,
+    "end_line": 28,
+    "related": [
+      {
+        "file": "plugins/studio/scripts/doctor.js",
+        "line": 74
+      }
+    ],
+    "evidence": "const r = spawnSync(cmd, args, { …, shell: isWin, … }); return { ok: r.status === 0, out: `${r.stdout || ''}${r.stderr || ''}`.trim(), status: r.status };",
+    "scenario": "EACCES/ENOENT/timeout → status null, out \"\" → blank detail; C:\\Users\\John Doe\\… launcher with shell:true → split at the space → false warning with the network fix",
+    "impact": "Wrong diagnosis on new machines; support cost at distribution",
+    "fix": "Include r.error.code in out; quote the command when isWin and it has spaces (keep shell for .cmd, CVE-2024-27980)",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 8,
+    "score": 1,
+    "request": "Fix run() in plugins/studio/scripts/doctor.js:25-28: report r.error (code or message) when the spawn fails, and quote commands with spaces on Windows. First a test that reproduces the problem and fails. (unit tests with a fake command path containing a space and a non-executable file)",
+    "verifier_reason": "Reproduced EACCES → empty out; shell:true split a path with a space (rc 127)"
+  },
+  {
+    "id": "F5",
+    "lens": "correctness",
+    "title": "doctor resolves the lessons folder differently from knowledge.js: fresh installs never get the allow rule, the fallback folder is ignored, another studio-* plugin folder can be picked",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/scripts/doctor.js",
+    "line": 107,
+    "end_line": 122,
+    "related": [
+      {
+        "file": "plugins/studio/hooks/knowledge.js",
+        "line": 16
+      },
+      {
+        "file": "plugins/studio/skills/setup/SKILL.md",
+        "line": 37
+      }
+    ],
+    "evidence": "const dirs = … readdirSync(dataRoot).filter((d) => /^studio-/.test(d) && d !== 'studio-inline'); const dir = … dirs[0] …",
+    "scenario": "Fresh HOME → \"not created yet\" and no allow-rule check; CLAUDE_PLUGIN_DATA unset → hook writes ~/.claude/studio/knowledge, doctor misses it; studio-kit-acme sorted first → wrong folder offered",
+    "impact": "Setup cannot remove the retro prompt for new users, and may grant access to the wrong folder",
+    "fix": "Share one knowledgeDir() between knowledge.js and doctor; compute the expected path and check the rule even when the folder does not exist",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 9,
+    "score": 1,
+    "request": "Make plugins/studio/scripts/doctor.js:107-122 use the same knowledge-folder rule as hooks/knowledge.js:16 (shared helper), check the allow rule even before the folder exists, and match only studio's own data folder. First a test that reproduces the problem and fails.",
+    "verifier_reason": "Reproduced all three cases with fake HOME"
+  },
+  {
+    "id": "F11",
+    "lens": "security",
+    "title": "Nested shells (bash -c, sh -c, cmd /c, powershell -Command, bash heredoc, eval) skip every guard rule",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/hooks/guard.js",
+    "line": 73,
+    "end_line": 88,
+    "related": [
+      {
+        "file": "plugins/studio/hooks/guard.js",
+        "line": 69
+      }
+    ],
+    "evidence": "parse(): a quoted -c script becomes one token; stripHeredocs removes heredoc bodies",
+    "scenario": "`bash -c \"rm -rf /\"`, `cmd /c \"rd /s /q C:\\\"`, `bash -c \"git push --force origin main\"`, `bash -c \"git commit -m x\"` with red verify → all exit 0",
+    "impact": "On Windows agents often wrap commands in cmd /c or powershell -Command, so the delete, push and commit rules miss them",
+    "fix": "Recurse checkCommand into the script argument of sh/bash/zsh/cmd/powershell/pwsh/eval and into heredocs fed to a shell",
+    "effort": "S",
+    "mode": "full",
+    "priority": 10,
+    "score": 1,
+    "request": "In plugins/studio/hooks/guard.js, apply checkCommand recursively to scripts passed to nested shells (bash/sh/zsh -c, cmd /c|/k, powershell/pwsh -Command, eval, heredocs fed to a shell). First a test that reproduces the problem and fails.",
+    "verifier_reason": "Reproduced: all wrapped forms exit 0, unwrapped exit 2"
+  },
+  {
+    "id": "F12",
+    "lens": "security",
+    "title": "Variable-based delete targets and some Windows forms pass the delete rule (${env:USERPROFILE}, %SystemDrive%\\, \"$OUT\"/*)",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/hooks/guard.js",
+    "line": 116,
+    "end_line": 136,
+    "related": [],
+    "evidence": "ROOT_TARGETS = [ /^[\\\\/]\\*?$/, /^\\$\\{?HOME\\}?[\\\\/]?\\*?$/, /^\\$env:(USERPROFILE|HOMEPATH|HOMEDRIVE|HOME)[\\\\/]?\\*?$/i, …",
+    "scenario": "`Remove-Item -Recurse ${env:USERPROFILE}` and `rd /s /q %SystemDrive%\\` exit 0; `rm -rf \"$OUT\"/*` with OUT unset (Bash calls do not keep variables) exits 0",
+    "impact": "Home or drive wipe not caught on Windows forms the rule already intends to cover",
+    "fix": "Add ${env:X}, %SystemDrive% and %HOMEDRIVE%%HOMEPATH% forms; block `$X/`/`\"$X\"/*` unless X is assigned in the same command or written ${X:?}",
+    "effort": "S",
+    "mode": "full",
+    "priority": 11,
+    "score": 1,
+    "request": "Extend the delete rule in plugins/studio/hooks/guard.js:116-136 to Windows forms ${env:USERPROFILE}, %SystemDrive%\\ and to unguarded variable prefixes like \"$OUT\"/*. First a test that reproduces the problem and fails.",
+    "verifier_reason": "Reproduced exit codes"
+  },
+  {
+    "id": "F22",
+    "lens": "correctness",
+    "title": "REA check reads only ~/.claude.json user scope and prints a setup command that differs from /studio:reverse",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/scripts/doctor.js",
+    "line": 133,
+    "end_line": 136,
+    "related": [
+      {
+        "file": "plugins/studio/skills/reverse/SKILL.md",
+        "line": 44
+      }
+    ],
+    "evidence": "const config = readJson(path.join(HOME, '.claude.json')); … 'Run: npx rea-agents@6.8.0 setup'",
+    "scenario": "CLAUDE_CONFIG_DIR set, or rea registered at local/project scope → \"not registered\"; the fix lacks -y/--client/--dry-run",
+    "impact": "Users with a working REA are told to run a setup that changes their config",
+    "fix": "Read CLAUDE_DIR/.claude.json and projects[*].mcpServers; print the reverse skill's doctor/dry-run commands",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 12,
+    "score": 1,
+    "request": "Make the REA check in plugins/studio/scripts/doctor.js:133-136 honour CLAUDE_CONFIG_DIR and local/project registrations, and print the same commands as skills/reverse/SKILL.md. First a test that reproduces the problem and fails.",
+    "verifier_reason": "Reproduced both scopes with fake HOME"
+  },
+  {
+    "id": "F23",
+    "lens": "correctness",
+    "title": "doctor accepts pipx for graphify, but the skill only installs with uv or pip",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/scripts/doctor.js",
+    "line": 64,
+    "end_line": 66,
+    "related": [
+      {
+        "file": "plugins/studio/skills/graphify/SKILL.md",
+        "line": 112
+      }
+    ],
+    "evidence": "const installer = ['uv', 'pipx', 'pip'].find((t) => run(t, ['--version']).ok);",
+    "scenario": "Only pipx on PATH → ✅; /studio:graphify then runs `pip install graphifyy` → not found or PEP 668 error",
+    "impact": "Setup says graphify is ready and its first run fails",
+    "fix": "Align doctor and the skill (add a pipx branch to the skill, or stop accepting pipx)",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 13,
+    "score": 1,
+    "request": "Align the graphify installer check in plugins/studio/scripts/doctor.js:64-66 with what skills/graphify/SKILL.md actually runs (do together with F6). First a test that reproduces the problem and fails.",
+    "verifier_reason": "Reproduced with a stub pipx"
+  },
+  {
+    "id": "F21",
+    "lens": "correctness",
+    "title": "Duplicate check misses Context7 (skill, plugin, user MCP) and a graphify plugin",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": "plugins/studio/scripts/doctor.js",
+    "line": 95,
+    "end_line": 101,
+    "related": [
+      {
+        "file": "README.md",
+        "line": 151
+      }
+    ],
+    "evidence": "for (const skill of ['impeccable', 'graphify', 'humanizer', 'ponytail']) … /^(ponytail|impeccable|humanizer)@/",
+    "scenario": "~/.claude/skills/context7-mcp + graphify@x plugin + user context7 MCP → doctor reports only other duplicates",
+    "impact": "Two Context7 tool sets load and setup says the install is clean",
+    "fix": "Derive the list from vendor.json (context7 → context7-mcp) and check mcpServers.context7",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 14,
+    "score": 1,
+    "request": "Derive the duplicate check in plugins/studio/scripts/doctor.js:95-101 from vendor.json and include Context7 (skill, plugin, user MCP) and graphify plugins. First a test that reproduces the problem and fails.",
+    "verifier_reason": "Reproduced with fake HOME"
+  },
+  {
+    "id": "F24",
+    "lens": "correctness",
+    "title": ".gitignore `knowledge/` also ignores new files in plugins/studio/knowledge/",
+    "severity": "low",
+    "confidence": "high",
+    "verdict": "confirmed",
+    "file": ".gitignore",
+    "line": 6,
+    "end_line": 6,
+    "related": [
+      {
+        "file": "plugins/studio/knowledge/lessons.md",
+        "line": 1
+      }
+    ],
+    "evidence": "knowledge/",
+    "scenario": "A maintainer adds plugins/studio/knowledge/new.md → git add -A skips it → installs never get it",
+    "impact": "Future base-knowledge files silently left out of the plugin",
+    "fix": "Anchor to /knowledge/",
+    "effort": "S",
+    "mode": "fast",
+    "priority": 15,
+    "score": 1,
+    "request": "Anchor the knowledge/ pattern in .gitignore:6 to the repository root (/knowledge/) so plugins/studio/knowledge/ files are tracked. First a test that reproduces the problem and fails. (git check-ignore on a new file)",
+    "verifier_reason": "git check-ignore confirmed"
+  },
+  {
+    "id": "F7",
+    "lens": "security",
+    "title": "Repo-shipped graphify-out/.graphify_python is executed by query/path/explain/update/add",
+    "severity": "low",
+    "verdict": "confirmed",
+    "file": "plugins/studio/skills/graphify/references/query.md",
+    "line": 14,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Reproduced: marker created from a planted interpreter file; needs an untrusted repo with graphify-out/ and an approved $(...) call"
+  },
+  {
+    "id": "F9",
+    "lens": "security",
+    "title": "Repo-supplied .studio/verify runs on any git commit, before the permission prompt",
+    "severity": "low",
+    "verdict": "confirmed",
+    "file": "plugins/studio/hooks/guard.js",
+    "line": 201,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Reproduced (marker); threat narrow, impact like a git hook; the F16→F9 chain is the realistic route"
+  },
+  {
+    "id": "F10",
+    "lens": "correctness",
+    "title": "On Windows the commit gate runs .studio/verify in cmd.exe, not the agents' shell",
+    "severity": "low",
+    "verdict": "plausible",
+    "file": "plugins/studio/hooks/guard.js",
+    "line": 207,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Code trace; fails closed (false \"Commit blocked\")"
+  },
+  {
+    "id": "F15",
+    "lens": "security",
+    "title": "Detector hash comes from the same release; graphifyy and npx impeccable unpinned",
+    "severity": "low",
+    "verdict": "plausible",
+    "file": "plugins/studio/skills/impeccable/scripts/impeccable",
+    "line": 121,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Version pinned and fails closed; only a compromised upstream release would matter"
+  },
+  {
+    "id": "F17",
+    "lens": "maintainability",
+    "title": "knowledge.js untested; unwritable personal dir drops plugin lessons and Ponytail silently; truncation cuts preferences first",
+    "severity": "low",
+    "verdict": "confirmed",
+    "file": "plugins/studio/hooks/knowledge.js",
+    "line": 53,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Reproduced: read-only dir → 0 bytes; 39k lessons → preferences and Ponytail cut"
+  },
+  {
+    "id": "F18",
+    "lens": "security",
+    "title": "reverser-live has raw debugger consoles outside the guard",
+    "severity": "low",
+    "verdict": "plausible",
+    "file": "plugins/studio/agents/reverser-live.md",
+    "line": 7,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Deliberate, gated by --runtime and the approved run list; Frida gives the same power"
+  },
+  {
+    "id": "F19",
+    "lens": "security",
+    "title": ".env check is case-sensitive (.ENV overwrites .env on APFS/NTFS)",
+    "severity": "low",
+    "verdict": "confirmed",
+    "file": "plugins/studio/hooks/guard.js",
+    "line": 63,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Reproduced; only deliberate evasion"
+  },
+  {
+    "id": "F20",
+    "lens": "security",
+    "title": "git by quoted full path with a space, and `git push origin @`, skip push/commit gates",
+    "severity": "low",
+    "verdict": "confirmed",
+    "file": "plugins/studio/hooks/guard.js",
+    "line": 165,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Reproduced rc 0"
+  },
+  {
+    "id": "F25",
+    "lens": "maintainability",
+    "title": "Release steps manual; vendor.js deletes the skill folder before checking the source",
+    "severity": "low",
+    "verdict": "confirmed",
+    "file": "scripts/vendor.js",
+    "line": 37,
+    "priority": null,
+    "backlog": false,
+    "verifier_reason": "Reproduced in a temp copy: folder left empty; recoverable from git"
+  },
+  {
+    "id": "F14",
+    "lens": "security",
+    "title": "Windows: cmd.exe resolves git/python/uv/impeccable from the project folder before PATH",
+    "severity": "medium",
+    "verdict": "refuted",
+    "file": "plugins/studio/scripts/doctor.js",
+    "line": 26,
+    "priority": null,
+    "verifier_reason": "Claude Code sets NoDefaultCurrentDirectoryInExePath=1 for its process tree, hook children and the Bash tool, so cmd.exe does not run planted git.bat/python.bat from the cwd. Residual only for a manual `node doctor.js` from a plain terminal."
+  }
+]

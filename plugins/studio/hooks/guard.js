@@ -132,19 +132,41 @@ const ROOT_TARGETS = [
   /^[\\/][A-Za-z][\\/]?\*?$/, // /c  /c/  (a Git Bash drive)
 ];
 
+const DELETE_MSG = 'Deleting the root, a drive, a top-level folder, the home folder, the project folder or one of their parents is blocked. Delete specific paths inside the project.';
+
+// Literal targets are resolved, so the home folder or the project is protected however the path is spelled
+// (`/Users/me`, `../../me`, `.`). Set once per call from the session folder, not from each `cd`.
+let protectedDirs = [];
+function setProtected(cwd) {
+  protectedDirs = [os.homedir(), cwd ? msysToNative(cwd) : process.cwd()].map((p) => real(path.resolve(p)));
+}
+
+// True when the target is the filesystem root or a top-level folder, or is a protected folder or one of its parents.
+function hitsProtected(t, dir) {
+  if (/[$%`]/.test(t)) return false; // variables keep their own rules (ROOT_TARGETS, BARE_VAR)
+  const literal = t.replace(/[\\/]\*$/, '') || t; // `x/*` deletes what is in x: treat it as x
+  if (/[*?]/.test(literal)) return false; // a glob in the middle: the targets are not known
+  const abs = path.resolve(dir, msysToNative(literal));
+  // Depth before realpath, or /tmp (→ /private/tmp on macOS) would pass.
+  if (abs.slice(path.parse(abs).root.length).split(/[\\/]/).filter(Boolean).length <= 1) return true;
+  const target = real(abs);
+  return protectedDirs.some((p) => {
+    const rel = path.relative(target, p); // case-insensitive on Windows
+    return !rel.startsWith('..') && !path.isAbsolute(rel);
+  });
+}
+
 // A target that is only a variable plus a separator (`$X/*`) is `/*` when the variable is unset, and every tool call is a fresh shell.
 const BARE_VAR = /^\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})[\\/]\*?$/;
 const assigns = (text, v) => new RegExp(`\\b${v}\\s*=|\\$${v}\\s*=|\\bfor\\s+\\$?${v}\\s+in\\b|\\bforeach\\s*\\(\\s*\\$${v}\\s+in\\b|\\bread\\s+(?:-\\w+\\s+)*\\$?${v}\\b`, 'i').test(text);
 
-function checkDelete(tokens, text) {
+function checkDelete(tokens, text, dir) {
   const i = commandAt(tokens, DELETE_CMD);
   if (i < 0) return;
   const cmdStyle = /^(rd|rmdir|del|erase)$/i.test(DELETE_CMD.exec(tokens[i])[1]); // cmd.exe takes /s /q switches
   for (const t of tokens.slice(i + 1)) {
     if (t.startsWith('-') || (cmdStyle && /^\/[A-Za-z]$/.test(t))) continue;
-    if (ROOT_TARGETS.some((re) => re.test(t))) {
-      block('Deleting the root, a drive, the home folder or a parent folder is blocked. Delete specific paths inside the project.');
-    }
+    if (ROOT_TARGETS.some((re) => re.test(t)) || hitsProtected(t, dir)) block(DELETE_MSG);
     const v = BARE_VAR.exec(t);
     const name = v && (v[1] || v[2]);
     if (name && name !== '_' && !assigns(text, name)) {
@@ -306,7 +328,7 @@ function checkCommand(cmd, cwd, depth = 0, outer = '') {
 
   let dir = path.resolve(cwd ? msysToNative(cwd) : process.cwd());
   for (const tokens of parse(text)) {
-    checkDelete(tokens, `${outer}\n${text}`);
+    checkDelete(tokens, `${outer}\n${text}`, dir);
     checkEnvWrite(tokens);
     const inner = innerScript(tokens);
     if (inner) checkCommand(inner, dir, depth + 1, inherited(tokens, text, inner, outer));
@@ -343,6 +365,7 @@ if (require.main === module) {
     const tool = data.tool_name || '';
     const input = data.tool_input || {};
     try {
+      setProtected(data.cwd);
       if (tool === 'Bash' || tool === 'PowerShell') checkCommand(input.command || '', data.cwd);
       else if (tool === 'Write' || tool === 'Edit' || tool === 'MultiEdit') checkWrite(input);
     } catch {

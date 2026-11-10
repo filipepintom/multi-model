@@ -87,6 +87,20 @@ test('deleting the root, a drive, home or a parent folder is blocked', () => {
   ]);
 });
 
+test('home, the project and their parents are blocked however the path is spelled; top-level folders too', () => {
+  const home = os.homedir();
+  expect('blocked', 'Bash', [
+    `rm -rf ${home}`, `rm -rf "${home}/"`, `rm -rf ${home}/*`, `rm -rf ${path.dirname(home)}`,
+    'rm -rf .', 'rm -rf ./', 'rm -rf ./*', `rm -rf ${dirs.feat}`, `rm -rf ${tmp}`, 'cd sub && rm -rf ..',
+    'rm -rf /etc', 'rm -rf /tmp', 'rm -rf /Users', `cd ${tmp} && rm -rf feat`,
+  ]);
+  if (process.platform === 'win32') expect('blocked', 'PowerShell', ['Remove-Item -Recurse -Force C:\\Windows', `Remove-Item -Recurse -Force ${home.toUpperCase()}`]);
+  expect('allowed', 'Bash', [
+    'cd sub && rm -rf .', `rm -rf ${path.join(dirs.feat, 'sub')}`, `rm -rf ${path.join(home, '.cache', 'studio-test')}`,
+    `rm -rf ${path.join(tmp, 'main')}`, 'rm -rf /tmp/studio-x', 'rm -rf build/*', 'rm -rf src/*.tmp',
+  ]);
+});
+
 test('ordinary deletes and text that mentions a delete pass', () => {
   expect('allowed', 'Bash', [
     'rm -rf node_modules', 'rm -rf ./build dist', 'rm -rf ~/.cache/studio-test', 'rm -f ../other/file.txt',

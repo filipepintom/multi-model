@@ -1,5 +1,5 @@
 {
-  "description": "Studio guardrails: block destructive commands, piped remote scripts and secrets in files; in projects with .studio/, block force pushes and pushes to main and require .studio/verify to pass before every commit. Inject lessons and preferences into /studio:build, /studio:audit and /studio:retro, and the Ponytail rules into studio subagents. Run the bundled Impeccable design detector (telemetry off) after UI edits.",
+  "description": "Studio guardrails: block destructive commands, piped remote scripts and secrets in files; in projects with .studio/, block force pushes and pushes to main and require .studio/verify to pass before every commit. Inject lessons and preferences into /studio:build, /studio:audit and /studio:retro, and the Ponytail rules into studio subagents and the /studio:build orchestrator. Run the bundled Impeccable design detector (telemetry off) after UI edits.",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -7,6 +7,11 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/knowledge.js\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ponytail.js\"",
             "timeout": 10
           }
         ]
@@ -17,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent.js\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ponytail.js\"",
             "timeout": 10
           }
         ]

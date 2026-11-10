@@ -73,6 +73,38 @@ test('check-release: a vendored skill with no README row is reported', () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('check-release: a shipped change after the last version bump needs a new bump', () => {
+  const dir = copy();
+  const git = (...a) => { const r = spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' }); assert.strictEqual(r.status, 0, r.stderr); };
+  const manifest = path.join(dir, 'plugins/studio/.claude-plugin/plugin.json');
+  const setVersion = (v) => fs.writeFileSync(manifest, fs.readFileSync(manifest, 'utf8').replace(/"version": "[^"]*"/, `"version": "${v}"`));
+  const hook = path.join(dir, 'plugins/studio/hooks/x.js');
+  fs.mkdirSync(path.dirname(hook), { recursive: true });
+  fs.writeFileSync(hook, '// v1\n');
+  fs.writeFileSync(path.join(dir, 'plugins/studio/hooks/x.test.js'), '// test\n');
+  setVersion('1.0.0');
+  git('init', '-q');
+  git('add', '-A');
+  git('update-index', '--chmod=+x', 'plugins/studio/skills/impeccable/scripts/impeccable');
+  git('commit', '-q', '-m', 'v1');
+  assert.strictEqual(check(dir).status, 0, check(dir).stdout);
+  // a test file alone does not need a bump
+  fs.writeFileSync(path.join(dir, 'plugins/studio/hooks/x.test.js'), '// test 2\n');
+  assert.strictEqual(check(dir).status, 0, check(dir).stdout);
+  // a shipped file does, committed or not
+  fs.writeFileSync(hook, '// v2\n');
+  let r = check(dir);
+  assert.strictEqual(r.status, 1);
+  assert.match(r.stdout, /changed after the bump to 1\.0\.0[\s\S]*hooks\/x\.js/);
+  git('commit', '-q', '-am', 'change without bump');
+  assert.strictEqual(check(dir).status, 1);
+  // a pending bump in the working tree is enough
+  setVersion('1.0.1');
+  r = check(dir);
+  assert.strictEqual(r.status, 0, r.stdout);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('check-release: a missing or incomplete SHA256SUMS is a problem line', () => {
   const dir = copy();
   const sums = path.join(dir, 'plugins/studio/skills/impeccable/scripts/SHA256SUMS');

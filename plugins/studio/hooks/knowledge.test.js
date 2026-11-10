@@ -58,7 +58,24 @@ test('retro: deletions and consolidation are in the batch (regression guard)', (
   assert.match(RETRO, /deletions, replacements and the ~40-line consolidation count as changes/i);
 });
 
-// Failure modes: an unwritable folder or a huge personal file must not drop the plugin lessons or Ponytail.
+// Claude Code replaces an additionalContext over 10,000 characters with a file path and a 2,000-character preview.
+const CAP = 10000;
+
+test('with the shipped plugin lessons, build and audit stay under the 10,000 cap and leave room for personal lessons', () => {
+  for (const prompt of ['/studio:build x', '/studio:audit x']) {
+    const r = spawnSync('node', [HOOK], {
+      input: JSON.stringify({ prompt }), encoding: 'utf8', timeout: 10000,
+      env: { ...process.env, STUDIO_KNOWLEDGE_DIR: path.join(tmp, 'real'), CLAUDE_PLUGIN_ROOT: path.resolve(__dirname, '..') },
+    });
+    const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+    assert.ok(ctx.length < CAP, `${prompt}: ${ctx.length}`);
+    assert.doesNotMatch(ctx, /PONYTAIL MODE ACTIVE/, 'Ponytail comes from hooks/ponytail.js');
+    // Plugin lessons grow with each release: keep at least 4,000 characters for the user's own lessons and preferences.
+    assert.ok(ctx.length < CAP - 4000, `${prompt}: plugin lessons and header use ${ctx.length} of ${CAP}`);
+  }
+});
+
+// Failure modes: an unwritable folder or a huge personal file must not drop the plugin lessons.
 function runWith(prompt, knowledgeDir) {
   const root = path.join(tmp, 'plugin-full');
   fs.mkdirSync(path.join(root, 'knowledge'), { recursive: true });
@@ -72,16 +89,15 @@ function runWith(prompt, knowledgeDir) {
   return JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
 }
 
-test('an unwritable personal folder still injects plugin lessons, Ponytail and an unavailable line', () => {
+test('an unwritable personal folder still injects plugin lessons and an unavailable line', () => {
   const blocker = path.join(tmp, 'blocker');
   fs.writeFileSync(blocker, 'a file, so mkdir below it fails');
   const ctx = runWith('/studio:build x', path.join(blocker, 'knowledge'));
   assert.match(ctx, /PLUGIN-LESSON-MARKER/);
-  assert.match(ctx, /PONYTAIL MODE ACTIVE/);
   assert.match(ctx, /Personal lessons unavailable: .*blocker.*\(ENOTDIR\)/);
 });
 
-test('truncation cuts the personal lessons first and keeps preferences and Ponytail', () => {
+test('truncation cuts the personal lessons first, keeps preferences and stays under the cap', () => {
   const dir = path.join(tmp, 'big');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'lessons.md'), 'x'.repeat(45000));
@@ -89,9 +105,8 @@ test('truncation cuts the personal lessons first and keeps preferences and Ponyt
   const ctx = runWith('/studio:build x', dir);
   assert.match(ctx, /PLUGIN-LESSON-MARKER/);
   assert.match(ctx, /PREFERENCES-MARKER/);
-  assert.match(ctx, /PONYTAIL MODE ACTIVE/);
   assert.match(ctx, /\[truncated: consolidate/);
-  assert.ok(ctx.length <= 40000 + 200, String(ctx.length));
+  assert.ok(ctx.length < CAP, String(ctx.length));
 });
 
 test('a huge preferences file still gives valid JSON within the cap, with plugin lessons', () => {
@@ -101,7 +116,7 @@ test('a huge preferences file still gives valid JSON within the cap, with plugin
   const ctx = runWith('/studio:build x', dir);
   assert.match(ctx, /PLUGIN-LESSON-MARKER/);
   assert.match(ctx, /\[truncated: consolidate/);
-  assert.ok(ctx.length <= 40000 + 100, String(ctx.length));
+  assert.ok(ctx.length < CAP, String(ctx.length));
 });
 
 test('an unavailable personal folder keeps the full header with the never-authorize sentence', () => {
@@ -112,9 +127,15 @@ test('an unavailable personal folder keeps the full header with the never-author
   assert.match(ctx, /Personal lessons unavailable/);
 });
 
-test('a huge preferences file on build still keeps Ponytail', () => {
-  const dir = path.join(tmp, 'hugeprefs2');
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'preferences.md'), 'p'.repeat(200000));
-  assert.match(runWith('/studio:build x', dir), /PONYTAIL MODE ACTIVE/);
+test('oversized plugin lessons are cut to the cap too', () => {
+  const root = path.join(tmp, 'plugin-huge');
+  fs.mkdirSync(path.join(root, 'knowledge'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'knowledge', 'lessons.md'), 'L'.repeat(30000));
+  const r = spawnSync('node', [HOOK], {
+    input: JSON.stringify({ prompt: '/studio:audit' }), encoding: 'utf8', timeout: 10000,
+    env: { ...process.env, STUDIO_KNOWLEDGE_DIR: path.join(tmp, 'k-huge'), CLAUDE_PLUGIN_ROOT: root },
+  });
+  const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+  assert.ok(ctx.length <= 9500, String(ctx.length));
+  assert.match(ctx, /\[truncated: consolidate/);
 });

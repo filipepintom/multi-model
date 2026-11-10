@@ -162,7 +162,7 @@ Write `retro.md` with:
 - fixed items;
 - **recurring false positives:** if a pattern was refuted more than once, it is a lesson for the "Do not report" section of that lens's rubric.
 
-Promote the lessons as in `/studio:retro`, except with `--auto`.
+Promote the lessons following sections 3 to 5 of [../retro/SKILL.md](../retro/SKILL.md), except with `--auto`.
 
 ## Final rules
 

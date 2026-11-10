@@ -104,7 +104,7 @@ The audit never changes code. Every finding needs `file:line`, the code and a co
 | `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet for maintainability), `verifier` (Sonnet; Opus for critical/high), `reverser` and `reverser-live` (Sonnet) |
 | `plugins/studio/skills/build/`, `audit/`, `reverse/`, `retro/`, `setup/` | The studio's own commands and their templates |
 | `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `humanizer/`, `context7-mcp/` | Bundled third-party skills (see [Bundled skills](#bundled-skills)) |
-| `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents, design detector |
+| `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents and the build orchestrator, design detector |
 | `plugins/studio/knowledge/lessons.md` | Base lessons shipped with the plugin |
 | `plugins/studio/scripts/doctor.js` | The read-only machine check behind `/studio:setup` |
 | `plugins/studio/.mcp.json` | The Context7 MCP server |
@@ -125,7 +125,7 @@ A hook injects all of this into `/studio:build`, `/studio:audit` and `/studio:re
 ## Guardrails
 
 Always on:
-- block deleting the root, a drive, the home folder or a parent folder (`rm`, `rd`, `del`, `Remove-Item` and their aliases), including inside `$(…)` and after `sudo` or `xargs`
+- block deleting the root, a drive, a top-level folder (`/etc`, `C:\Windows`), the home folder, the project folder or a parent of either (`rm`, `rd`, `del`, `Remove-Item` and their aliases), however the path is written (`~`, `/Users/me`, `..`, `.`), including inside `$(…)` and after `sudo` or `xargs`
 - block scripts from the internet piped or substituted into a shell or interpreter (`curl | sh`, `bash <(curl …)`, `iwr | iex`, `iex (iwr …)`) and encoded PowerShell commands
 - block writes to `.env` files, from the Write and Edit tools or from the shell (`>`, `tee`, `cp`, `Set-Content`…)
 - block content and commands that contain a real-looking secret (AWS, GitHub, Anthropic, OpenAI, Stripe, Slack and Google keys, private keys); placeholders such as `sk-ant-xxxx` pass
@@ -197,6 +197,8 @@ The output in `evals/visual/out/` has `report.md`, `key.json` and `board.html`, 
 ### Updating bundled skills
 
 Read the new upstream code first, then run `node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <source-folder>`, bump the version in `plugins/studio/.claude-plugin/plugin.json`, run `node scripts/check-release.js`, run the evals, and commit.
+
+The version pins installs: users only get a change when the version goes up. `check-release.js`, which CI runs, fails when a file under `plugins/studio/` (tests aside) changed after the last version bump.
 
 ### Tool decisions
 

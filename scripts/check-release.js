@@ -57,5 +57,25 @@ try {
   if (!readJson(path.join(plugin, '.claude-plugin', 'plugin.json')).version) problems.push('plugin.json has no version');
 } catch (e) { problems.push(`plugin.json invalid: ${e.message}`); }
 
+// The version in plugin.json pins installs: a shipped file changed after the last bump never reaches users of that version.
+// Compared with the working tree, so a bump that is not committed yet counts. Skipped outside a git checkout or in a
+// shallow clone where the bump commit is missing. Any commit that changes the "version" line counts as a bump.
+{
+  const manifest = 'plugins/studio/.claude-plugin/plugin.json';
+  const git = (...args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+  const bump = git('log', '-1', '-G"version"', '--format=%H', '--', manifest);
+  const sha = bump.status === 0 ? bump.stdout.trim() : '';
+  if (sha) {
+    let then = null;
+    let now = null;
+    try { then = JSON.parse(git('show', `${sha}:${manifest}`).stdout).version; } catch { /* unreadable: skip */ }
+    try { now = readJson(path.join(root, manifest)).version; } catch { /* reported above */ }
+    if (then && now && then === now) {
+      const changed = git('diff', '--name-only', sha, '--', 'plugins/studio', ':(exclude,glob)**/*.test.js').stdout.trim();
+      if (changed) problems.push(`plugins/studio changed after the bump to ${now} (${sha.slice(0, 7)}): bump the version in plugin.json\n  ${changed.split('\n').join('\n  ')}`);
+    }
+  }
+}
+
 if (problems.length) { console.log(problems.join('\n')); process.exit(1); }
 console.log('release check ok');

@@ -13,7 +13,9 @@ const path = require('path');
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..');
 const PLUGIN_LESSONS = path.join(PLUGIN_ROOT, 'knowledge', 'lessons.md');
 let PERSONAL;
-const MAX_CHARS = 40000;
+// Claude Code caps a hook's additionalContext at 10,000 characters; above it the agent sees only a file path and a
+// 2,000-character preview. Keep a margin under the cap.
+const MAX_CHARS = 9500;
 
 const SEEDS = {
   'lessons.md': `# My lessons
@@ -67,24 +69,17 @@ process.stdin.on('end', () => {
       // An unwritable folder must not drop the plugin lessons.
       tail = `Personal lessons unavailable: ${PERSONAL} (${e.code || 'error'})`;
     }
-    const parts = [];
-    // On build, the orchestrator also follows Ponytail (the subagents get it through hooks/subagent.js).
-    if (/^\s*\/studio:build\b/.test(prompt)) {
-      const ponytail = path.join(PLUGIN_ROOT, 'skills', 'ponytail', 'SKILL.md');
-      if (fs.existsSync(ponytail)) {
-        parts.push(`# PONYTAIL MODE ACTIVE — level: full\n\n${fs.readFileSync(ponytail, 'utf8').replace(/^---[\s\S]*?\n---\s*/, '').trim()}`);
-      }
-    }
+    // Ponytail for the build orchestrator comes from hooks/ponytail.js, a separate hook with its own cap.
     const NOTE = '\n\n[truncated: consolidate the personal lessons with /studio:retro]';
-    // Truncation cuts the personal lessons first; header, plugin lessons, preferences and Ponytail stay.
-    const fixed = [...head, tail, ...parts].join('\n\n');
+    // Truncation cuts the personal lessons first; header, plugin lessons and preferences stay.
+    const fixed = [...head, tail].join('\n\n');
     const room = MAX_CHARS - fixed.length - 4 - NOTE.length;
     if (personal.length > room) personal = room >= 0 ? `${personal.slice(0, room)}${NOTE}` : '';
-    // Preferences alone too big: cut them (with the note) so Ponytail survives.
+    // Preferences alone too big: cut them too (with the note), so the header and plugin lessons stay.
     if (room < 0) tail = `${tail.slice(0, Math.max(0, tail.length + room))}${NOTE}`;
-    let context = [...head, personal, tail, ...parts].filter(Boolean).join('\n\n');
-    // Last resort: an oversized preferences file must not blow the cap either.
-    if (context.length > MAX_CHARS) context = `${context.slice(0, MAX_CHARS)}${NOTE}`;
+    let context = [...head, personal, tail].filter(Boolean).join('\n\n');
+    // Last resort: oversized plugin lessons must not blow the cap either.
+    if (context.length > MAX_CHARS) context = `${context.slice(0, MAX_CHARS - NOTE.length)}${NOTE}`;
     // Exit in the write callback so a pipe is flushed first.
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } }), () => process.exit(0));
     return;

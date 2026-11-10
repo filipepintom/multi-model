@@ -20,7 +20,7 @@ Flags:
 
 ## Principles
 
-1. **State lives in files.** Everything in `docs/studio/<slug>/` in the project: `state.md`, `idea.md`, `spec.md`, `plan.md`, `review.md`, `delivery.md`, `retro.md`. Update `state.md` at the end of each phase. If `state.md` already exists for this slug, **resume** from the recorded phase.
+1. **State lives in files.** Everything in `docs/studio/<slug>/` in the project: `state.md`, `idea.md`, `spec.md`, `plan.md`, `review.md`, `delivery.md`, `retro.md`. Update `state.md` at the end of each phase. If `state.md` already exists for this slug, **resume** from the recorded phase. To resume in a new session, the user runs `/studio:build` again with the same request or slug: the lessons and the Ponytail rules are injected only on that command.
 2. **Objective gates.** "Done" means green verification, not an agent's opinion.
 3. **Two human gates**: approval of the spec (gate 1) and of the delivery (gate 2). Between them, run on your own and only interrupt the user for an escalation.
 4. **Routing by task type**, decided in the plan, not ad hoc.
@@ -136,7 +136,9 @@ Plan rules:
 
 ## Phase 7 — Retro
 
-Follow the `/studio:retro` instructions for this slug. It is mandatory: this is how the system improves. With `--auto` (evals), write only `retro.md` and do not promote lessons: test tasks do not teach the system.
+Read [../retro/SKILL.md](../retro/SKILL.md) and follow it with this slug as its argument. It is mandatory: this is how the system improves. With `--auto` (evals), write only `retro.md` and do not promote lessons: test tasks do not teach the system.
+
+The retro needs the "Studio knowledge" section to find duplicates and the personal folder. If it is no longer in your context (the session was compacted), write `retro.md`, do not read the lesson files from disk, and ask the user to run `/studio:retro <slug>`, which injects it again.
 
 ## Final rules
 

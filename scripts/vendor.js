@@ -105,7 +105,7 @@ if (name === 'impeccable') {
     license: 'MIT',
     version: pkg.version,
     updated: today,
-    notes: 'Skill only. The injection into the studio subagents is done by hooks/subagent.js.',
+    notes: 'Skill only. hooks/ponytail.js injects it into the studio subagents and the build orchestrator.',
   };
 } else if (name === 'context7') {
   // Source: folder with SKILL.md (from skills/context7-mcp in the upstash/context7 repo) and the repo's LICENSE.

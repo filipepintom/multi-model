@@ -50,6 +50,17 @@ test('wrapper exits 0 when the launcher exits 1', { skip: win }, () => {
   try { assert.equal(runHook(copy, ['hook']).status, 0); } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test('outside hook mode the wrapper returns the launcher exit code, and 1 when it is missing', { skip: win }, () => {
+  const { tmp, copy } = plugin('#!/bin/sh\nexit 3\n');
+  try { assert.equal(runHook(copy, ['detect', '--json', 'http://localhost:1']).status, 3); } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  const missing = plugin(null);
+  try {
+    const r = runHook(missing.copy, ['--version']);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /launcher not found/);
+  } finally { fs.rmSync(missing.tmp, { recursive: true, force: true }); }
+});
+
 test('wrapper passes argv, stdin and telemetry-off to the launcher', { skip: win }, () => {
   const { tmp, copy } = plugin('#!/bin/sh\n{ echo "args=$*"; echo "tel=$IMPECCABLE_NO_TELEMETRY"; cat; } > "$OUT"\necho from-launcher\n');
   const out = path.join(tmp, 'out.txt');

@@ -17,7 +17,7 @@ The **Context7 server** is not copied: it is a remote MCP server (`https://mcp.c
 
 - **Impeccable:** the detector binary is not included. The launcher (`skills/impeccable/scripts/impeccable`) downloads the right binary for the operating system on first use and keeps it in a cache keyed by the pinned version. The studio hooks run it with `IMPECCABLE_NO_TELEMETRY=1`.
 - **graphify:** only change is `disable-model-invocation: true`. It runs only through `/studio:graphify`, because the original description makes the skill fire on any question about code. On first use it installs the Python package `graphifyy` (uv, pipx or pip). Studio agents use the graph when `graphify-out/` exists in the project.
-- **Ponytail:** only the skill is included. The original plugin's cost log, statusline and panel are not. The rules reach studio subagents through `hooks/subagent.js` and the build orchestrator through `hooks/knowledge.js`.
+- **Ponytail:** only the skill is included. The original plugin's cost log, statusline and panel are not. The rules reach studio subagents and the build orchestrator through `hooks/ponytail.js`.
 
 ## modern-screenshot
 

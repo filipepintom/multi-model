@@ -22,6 +22,22 @@ test('reverser (static): no runtime tool', () => {
   assert.deepStrictEqual(bad, []);
 });
 
+// An agent with a `tools:` list and no Skill tool cannot load a skill: it must get paths instead.
+test('agents without the Skill tool are not told to load a skill', () => {
+  for (const f of fs.readdirSync(__dirname).filter((n) => n.endsWith('.md'))) {
+    const text = fs.readFileSync(path.join(__dirname, f), 'utf8');
+    const m = text.match(/^tools:\s*(.+)$/m);
+    if (!m || m[1].split(',').map((t) => t.trim()).includes('Skill')) continue;
+    assert.doesNotMatch(text, /\b(load|use|run|follow)\b[^.\n]{0,40}\bskill\b/i, f);
+  }
+});
+
+test('reviewer: runs the detector through the plugin wrapper, by a path that exists', () => {
+  const reviewer = fs.readFileSync(path.join(__dirname, 'reviewer.md'), 'utf8');
+  assert.match(reviewer, /node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/impeccable\.js" detect --json/);
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'hooks', 'impeccable.js')));
+});
+
 test('reviewer: the npx fallback is pinned to the bundled Impeccable version', () => {
   const version = fs.readFileSync(path.join(__dirname, '..', 'skills', 'impeccable', 'SKILL.md'), 'utf8').match(/^version:\s*(\S+)/m)[1];
   const reviewer = fs.readFileSync(path.join(__dirname, 'reviewer.md'), 'utf8');

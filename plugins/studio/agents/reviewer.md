@@ -19,8 +19,9 @@ You receive: the spec path, the plan with the acceptance criteria, and the diff 
 4. **Blast radius.** What else depends on the changed code? If `graphify-out/` exists, use `graphify query`/`graphify path`; otherwise Grep for the callers. Confirm in the code.
 5. **Security.** Unvalidated input, injection, secrets, missing authorization.
 6. **UI (if applicable): design gate.**
-   - Start the app and run the Impeccable detector on the URL, on desktop and on mobile:
-     `<detector> detect --json http://localhost:<port>` and `<detector> detect --json --viewport 390x844 http://localhost:<port>`, where `<detector>` is the launcher included in the plugin: `scripts/impeccable` inside the `studio:impeccable` skill folder (on Windows without `sh`, `impeccable.cmd`). Load the skill so you know the folder. As a last resort, use `npx -y impeccable@4.7.0` (the bundled version). Always run it with `IMPECCABLE_NO_TELEMETRY=1`. If the app requires login, also analyze the authenticated pages (for example with a test session), not just the login screen.
+   - Start the app and run the Impeccable detector included in the plugin on the URL, on desktop and on mobile. The same command works on macOS, Linux and Windows and turns telemetry off:
+     `node "${CLAUDE_PLUGIN_ROOT}/hooks/impeccable.js" detect --json http://localhost:<port>` and `node "${CLAUDE_PLUGIN_ROOT}/hooks/impeccable.js" detect --json --viewport 390x844 http://localhost:<port>`.
+     JSON output is the result, whatever the exit code. No JSON and a "launcher not found" or download error means the detector is not available: as a last resort, run `npx -y impeccable@4.7.0` (the bundled version) with `IMPECCABLE_NO_TELEMETRY=1`. If the app requires login, also analyze the authenticated pages (for example with a test session), not just the login screen.
    - Analyzing the source code is not enough: the contrast, tiny text and layout rules only run on the rendered page.
    - The detector's findings count as **important**, unless they contradict the approved `DESIGN.md` (the brief prevails).
    - Confirm that the UI follows `DESIGN.md`: tokens instead of loose values and the visual system's components reused. Also confirm the empty, loading and error states, and mobile.

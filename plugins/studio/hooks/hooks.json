@@ -1,5 +1,5 @@
 {
-  "description": "Studio guardrails: block destructive commands, piped remote scripts and secrets in files; in projects with .studio/, block force pushes and pushes to main and require .studio/verify to pass before every commit. Inject lessons and preferences into /studio:build, /studio:audit and /studio:retro, and the Ponytail rules into studio subagents and the /studio:build orchestrator. Run the bundled Impeccable design detector (telemetry off) after UI edits.",
+  "description": "Studio guardrails: block destructive commands, piped remote scripts and secrets in files; in projects with .studio/, block force pushes and pushes to main and require .studio/verify to pass before every commit. Inject lessons and preferences into /studio:build, /studio:audit and /studio:retro, and the Ponytail rules into studio subagents and the /studio:build orchestrator. Log compactions during a studio run to docs/studio/<slug>/compactions.jsonl. Run the bundled Impeccable design detector (telemetry off) after UI edits.",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -82,6 +82,17 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/impeccable.js\" hook",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/compact.js\"",
+            "timeout": 10
           }
         ]
       }

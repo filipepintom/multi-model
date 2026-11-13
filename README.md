@@ -104,7 +104,7 @@ The audit never changes code. Every finding needs `file:line`, the code and a co
 | `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet for maintainability), `verifier` (Sonnet; Opus for critical/high), `reverser` and `reverser-live` (Sonnet) |
 | `plugins/studio/skills/build/`, `audit/`, `reverse/`, `retro/`, `setup/` | The studio's own commands and their templates |
 | `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `humanizer/`, `context7-mcp/` | Bundled third-party skills (see [Bundled skills](#bundled-skills)) |
-| `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents and the build orchestrator, design detector |
+| `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents and the build orchestrator, compaction log, design detector |
 | `plugins/studio/knowledge/lessons.md` | Base lessons shipped with the plugin |
 | `plugins/studio/scripts/doctor.js` | The read-only machine check behind `/studio:setup` |
 | `plugins/studio/.mcp.json` | The Context7 MCP server |

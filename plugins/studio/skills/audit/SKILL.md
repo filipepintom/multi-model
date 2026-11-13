@@ -139,7 +139,7 @@ Refuted ones get `"priority": null` and the reason in `verifier_reason`.
 
 ## Phase 8 — Gate (except `--auto`)
 
-Present to the user:
+Present to the user, with `report.md` as a file they can open (sent with a tool that sends files to the user, such as `SendUserFile`, if this session has one; otherwise a Markdown link):
 - the numbers by severity;
 - the top 5 with one line each;
 - how many findings were refuted (the audit's calibration);

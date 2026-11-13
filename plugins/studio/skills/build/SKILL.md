@@ -42,7 +42,7 @@ Flags:
 
 For small tasks, the fixed cost of the critic and of an Opus review weighs more than the work itself. Fast mode keeps the objective gates and cuts the ceremony.
 
-1. **Short spec:** write only `spec.md` with the goal, testable acceptance criteria and the single task (tier `haiku` or `sonnet`). There is no `plan.md`, critic or explorer, unless you need to locate code. **Gate 1** (except `--auto`): show only the criteria and ask for confirmation.
+1. **Short spec:** write only `spec.md` with the goal, testable acceptance criteria and the single task (tier `haiku` or `sonnet`). There is no `plan.md`, critic or explorer, unless you need to locate code. **Gate 1** (except `--auto`): show only the criteria, with `spec.md` as a file as in the full gate 1, and ask for confirmation.
 2. **Implementation:** create the branch `studio/<slug>` and launch one `studio:implementer` with `model` equal to the tier, **without a worktree** (it is a single task).
 3. **Verification:** run `.studio/verify`. Red → one new attempt with the exact error.
 4. **Review:** launch `studio:reviewer` with `model: "sonnet"`. Save the verdict in `review.md`. If the task touches UI, the implementer follows the existing `DESIGN.md` and the review includes the design gate.
@@ -71,8 +71,8 @@ The goal is for the user to spend their time on the 3 or 4 decisions that matter
 1. **Present, in a single message:**
    - the summary in 5 to 8 lines: goal, scope, out of scope, stack and, if there is an interface, the design direction;
    - a table of the decisions: id, the question, your recommendation in one line and the cost of changing later;
-   - the path of `spec.md`, for anyone who wants the detail.
-2. **Ask with AskUserQuestion:** "Approve everything as recommended" (first option), "Discuss decisions", "Change the scope". The free-text option is for other requests.
+   - `spec.md` as a file the user can open: if this session has a tool that sends a file to the user (such as `SendUserFile`), send `spec.md`, and `DESIGN.md` if there is one; otherwise, a Markdown link to it relative to the project root.
+2. **Ask with AskUserQuestion**, naming the `spec.md` path in the question (the dialog can hide the message above): "Approve everything as recommended" (first option), "Discuss decisions", "Change the scope", "Read the spec first" (end the turn and wait). The free-text option is for other requests.
 3. **Discuss decisions:** ask which ones (AskUserQuestion `multiSelect` with the decisions; with more than 4, the 4 with the highest cost of changing later, and the others through the free-text option). Then, **one at a time**:
    - explain the decision in plain language: what changes for the user, the cost, the risk and whether it can be reversed;
    - present your recommendation with the best argument **against** it. A discussion in which the agent only agrees serves no one;
@@ -132,7 +132,7 @@ Plan rules:
 1. Make sure there are clean commits on `studio/<slug>`, with messages that say why. Confirm that no implementer worktrees or branches are left (`git worktree list`, branches `worktree-agent-*`). Remove the ones already integrated and run `git worktree prune`.
 2. Write `delivery.md`: what was done, how to verify, decisions taken, what was left out, open minor findings, notable cost/attempts.
 3. **Text for people:** run the `studio:humanizer` skill over `delivery.md` and over the documentation for people that the build created or changed (README, guides, in-app help). The content does not change: facts, commands, numbers, paths and names stay the same, and only the prose is rewritten. **Never** use it on `spec.md`, `plan.md`, `state.md`, `review.md`, `retro.md`, `CLAUDE.md`, lessons or preferences: they are contracts between agents, and precision is worth more than style.
-4. **Gate 2** (except `--auto`): present the summary and ask the user for the destination: open a PR, local merge, or leave the branch as it is. Never push or merge without this answer.
+4. **Gate 2** (except `--auto`): present the summary, with `delivery.md` as a file as in gate 1, and ask the user for the destination: open a PR, local merge, or leave the branch as it is. Never push or merge without this answer.
 
 ## Phase 7 — Retro
 

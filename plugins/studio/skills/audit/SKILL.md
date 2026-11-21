@@ -9,11 +9,11 @@ disable-model-invocation: true
 
 Request: $ARGUMENTS
 
-You are the **audit orchestrator**. An audit **diagnoses, it does not operate**: the result is a prioritized, verified backlog, not code. Nothing in the project's code changes during the audit. You only write in `docs/studio/<slug>/` (and, if needed, in `.gitignore`). Each fix the user chooses then goes through `/studio:build`, with a test that reproduces the problem before the fix.
+You are the **audit orchestrator**. An audit **diagnoses, it does not operate**: the result is a prioritized, verified backlog, not code. Nothing in the project's code changes during the audit. You and the agents you launch only write in `docs/studio/<slug>/` (and, if needed, in `.gitignore`). Each fix the user chooses then goes through `/studio:build`, with a test that reproduces the problem before the fix.
 
 Write everything the user reads (messages, docs, reports, the text inside artifacts) in the language the user writes in; default to the language of the original request.
 
-Delegate code reading: the map to `studio:explorer`, the search for problems to `studio:auditor` and the verification to `studio:verifier`. Your context is the most expensive resource; keep conclusions in it, not files.
+Delegate whatever would fill your context: the map and the baseline measurements to `studio:explorer`, the search for problems to `studio:auditor`, the verification to `studio:verifier` and the humanizer pass over `report.md` to `studio:implementer`. Your context is the most expensive resource; keep conclusions in it, not files, command output or scripts.
 
 Flags:
 - `--lenses a,b`: the lenses to use. Default: `correctness,security,maintainability`. Each lens is a rubric in [lenses/](lenses/).
@@ -54,14 +54,23 @@ Launch `studio:explorer` (several in parallel, by groups of modules, if the scop
 
 ## Phase 3 — Baseline (objective measurement)
 
-Run what already exists yourself. **Do not install anything.** If a command fails, record the failure and carry on.
+Do not run the measurements yourself: test logs, `npm audit --json` and a year of `git log` do not belong in your context. Launch one `studio:explorer` with `model: "sonnet"`. Its prompt carries the repository root, the scope, the language of the audit's documents, the path of `map.md` (it says how to run the project), and the measurements, the rules and the answer format below.
+
+Measurements, with what already exists in the project:
 - tests: the total, the failing ones (each failing test is a correctness finding) and, if cheap, coverage (`node --test --experimental-test-coverage`, or the tool already configured);
 - build, type-check and lint, if configured;
 - dependencies: `npm audit --json` if there is a lockfile, `pip-audit` if already installed;
 - hotspots: changes per file over the last 12 months (`git log --since=12.months --name-only --format=`), crossed with size. The 10 most changed and largest files;
 - the largest files and functions.
 
-Write `baseline.md` with numbers, not opinions.
+Rules for the explorer:
+- **it installs nothing.** If a command fails, it records the failure and carries on;
+- it writes no file in the repository. Anything it needs to save goes in a system temp folder, outside the repository;
+- every command runs with a timeout, and no process is left running at the end.
+
+Answer format: the content of `baseline.md`, ready to save. One section per measurement (tests, build and lint, dependencies, hotspots, largest files), with numbers and tables, not opinions. It names each failing test, and each command that failed with its error in one line. No command output, and about 60 lines at most.
+
+Save the answer in `baseline.md` as it came. The lenses read that file: do not shorten it.
 
 ## Phase 4 — Lenses (in parallel)
 
@@ -103,9 +112,18 @@ For each backlog item define:
 - `mode`: `fast` or `full`, using the triage criteria of `/studio:build` (security, data, concurrency or auth → full);
 - `request`: the request ready for `/studio:build`, which includes "first a test that reproduces the problem and fails".
 
-Write:
+Write both files yourself:
 - `findings.json`: the backlog items and the refuted ones, in the format below. The "also observed" ones do not go in;
-- `report.md`, from [templates/report.md](templates/report.md). Run the `studio:humanizer` skill only over the prose of `report.md` (the summary and the explanations). The locations, the evidence, the numbers and `findings.json` do not change.
+- `report.md`, from [templates/report.md](templates/report.md).
+
+Do not load the humanizer skill yourself: it is twice the size of this one. When `report.md` is written, launch one `studio:implementer` with `model: "sonnet"`, without a worktree, to run it. Its prompt carries the path of `report.md` and these rules:
+- it changes `report.md` with the Edit tool and touches no other file. It writes no tests and no scripts, and it does not run the project's tests or `.studio/verify`: this task has no code to verify;
+- it is done when it has loaded the `studio:humanizer` skill and applied it only to the prose of `report.md` (the summary and the explanations), in the language the report is in. The locations, the evidence, the numbers, the build requests and `findings.json` do not change, and no section is added or removed;
+- it answers in three lines at most, says whether the humanizer ran, and never returns the text of the report.
+
+You write the report and the agent only edits it because Claude Code refuses a subagent that creates a file named `report.md` ("Subagents should return findings as text, not write report files"). On eval 016 an implementer asked to write it was refused and handed the whole draft back, so the report went through your context twice. A subagent can edit a report that already exists.
+
+When it answers, your check is one count, not a second reading: the number of `### F` sections in `report.md` still equals the number of findings with a priority. If its answer does not say that the humanizer ran, send the same agent back once to run it: a trial implementer given the humanizer as a rule apart from the done condition skipped the pass.
 
 ### `findings.json` format
 
@@ -153,7 +171,7 @@ For each item, in priority order, read [../build/SKILL.md](../build/SKILL.md) an
 - the first task is **always** a test that reproduces the problem and **fails** before the fix. In a maintainability refactor, these are characterization tests that pin the current behavior;
 - one branch per item: `studio/<slug>-<id>`;
 - each build's gate 2 stays;
-- update the item's status in `report.md`: fixed, or blocked and why.
+- update the item's status in `report.md`: fixed, or blocked and why. Find the item's row in the backlog table by its id and change that line only: the rest of the report does not need to enter your context again.
 
 ## Phase 10 — Retro
 
@@ -166,7 +184,7 @@ Promote the lessons following sections 3 to 5 of [../retro/SKILL.md](../retro/SK
 
 ## Final rules
 
-- Never change project code during phases 0 to 8.
+- Never change project code during phases 0 to 8. The same holds for the agents you launch: the explorers write nothing in the repository, and the implementer of phase 7 edits only `report.md`.
 - Never report a finding that has not gone through verification.
 - No network, except `localhost` and the dependency commands of phase 3. Nothing destructive. Reproductions run in temporary folders outside the repository.
 - Write directly. Keep the user informed with one line per phase.

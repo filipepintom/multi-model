@@ -96,7 +96,7 @@ async function shoot(ws, out) {
   }
 }
 
-module.exports = { shoot };
+module.exports = { shoot, startChrome, connect, sleep };
 
 if (require.main === module) {
   const [ws, out] = process.argv.slice(2);

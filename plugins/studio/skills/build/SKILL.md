@@ -1,6 +1,6 @@
 ---
 name: build
-description: Studio pipeline — idea, spec, plan, multi-model implementation, verification, review and delivery, with two human gates and a fast mode for small tasks. Use when the user wants to build an idea, product, platform or feature end to end.
+description: Studio pipeline — idea, spec, plan, multi-model implementation, verification, review and delivery, with two human gates, a fast mode for small tasks and a page mode for landing pages. Use when the user wants to build an idea, product, platform or feature end to end.
 argument-hint: "<what to build>" [--auto] [--skip-idea] [--fast | --full]
 disable-model-invocation: true
 ---
@@ -34,9 +34,21 @@ Flags:
 5. Define the slug (short kebab-case) and create `docs/studio/<slug>/state.md` from [templates/state.md](templates/state.md).
 6. Find the verification command (tests + lint + type-check) and save it in `.studio/verify` on one line. If the project has nothing yet, **do not create `.studio/verify` yet**: the guard runs it before every commit and blocks everything while the command does not exist. The command goes into the plan as part of the first task (the skeleton), which only then creates the file.
 7. **Triage** (unless `--fast`/`--full`): choose the mode and record it in `state.md` with the reason in one line.
+   - **Page** if the project has no interface yet and the request is for one page or a small static site whose job is to present or persuade (a landing page, a homepage, a portfolio), with no accounts, stored data or server code: follow the **Page mode** section and skip phases 1 to 5. Check this first. A project that already has an interface, a `DESIGN.md` or an `.impeccable/` folder never takes this mode.
    - **Fast** if all of this is true: a small change or module (up to ~3 code files, plus tests); no new dependencies; no authentication, security, persistent data, migrations or concurrency; clear acceptance criteria from the request; nothing to decide about the product.
    - **Full** in every other case, and whenever you are in doubt. A new idea (without `--skip-idea`) is always full.
    - Fast mode → follow the **Fast mode** section and skip phases 1 to 5.
+## Page mode
+
+On a page, the design is the work. One agent with the whole request and the design skill builds a better page than a direction handed from one agent to another: on eval 024 it won every blind comparison against the full pipeline, at less than half the cost. So in this mode nobody designs for the designer and nothing is decided before it starts.
+
+1. **Prepare:** create the branch `studio/<slug>`. Write `.impeccable/config.json` with `{"hook": {"enabled": false}}`: a page has one design authority, and here it is the designer's skill, not the Impeccable detector. Do not write `spec.md`, `PRODUCT.md` or `DESIGN.md`, and do not launch the critic or the explorer.
+2. **Design and build:** launch one `studio:designer` with `model: "opus"`, without a worktree. Its prompt is the user's request, word for word and complete, and nothing else: no summary, no criteria and no direction of your own.
+3. **Review:** launch `studio:reviewer` with `model: "sonnet"`, the request and the diff. Ask only for: facts on the page that the request does not state; facts from the request that are missing or wrong; layout that breaks at 1440 or at 390 wide; links and controls that do not work; accessibility failures. Tell it to skip the design gate and the detector and not to judge the visual direction. Save the verdict in `review.md`.
+4. **Fixes:** each blocker or important finding goes back to a `studio:designer` with `model: "opus"`, with the finding quoted and the instruction to change only what it names. At most 2 review rounds.
+5. Go on to phase 6 (delivery) and phase 7 (retro) as in full mode.
+
+There is no gate 1 in this mode, because there is no spec to approve: the request is the brief. The user's taste comes in at gate 2. Show the page there, on a desktop width and on a phone width, before asking for the destination; if the user wants another direction, run step 2 again with their words added after the request.
 
 ## Fast mode
 
@@ -44,7 +56,7 @@ For small tasks, the fixed cost of the critic and of an Opus review weighs more 
 
 1. **Short spec:** write only `spec.md` with the goal, testable acceptance criteria and the single task (tier `haiku` or `sonnet`). There is no `plan.md`, critic or explorer, unless you need to locate code. **Gate 1** (except `--auto`): show only the criteria, with `spec.md` as a file as in the full gate 1, and ask for confirmation.
 2. **Implementation:** create the branch `studio/<slug>` and launch one `studio:implementer` with `model` equal to the tier, **without a worktree** (it is a single task).
-3. **Verification:** run `.studio/verify`. Red → one new attempt with the exact error.
+3. **Verification:** run `.studio/verify`. Red → one new attempt with the exact error. If the task made or changed a screen people work in, run the behaviour pass (phase 4, step 5) now and verify again.
 4. **Review:** launch `studio:reviewer` with `model: "sonnet"`. Save the verdict in `review.md`. If the task touches UI, the implementer follows the existing `DESIGN.md` and the review includes the design gate.
 5. **Escalation to full mode**, from phase 3 on, if any of these happens: the implementer blocks twice, the review has a blocker, or the task turns out not to fit the triage criteria. Record the escalation in `state.md`: it is a lesson about triage.
 6. Go on to phase 6 (delivery) and phase 7 (retro) as in full mode.
@@ -112,6 +124,7 @@ Plan rules:
 2. For each group of independent tasks, launch one `studio:implementer` per task **in the same message**, with `isolation: "worktree"` and `model` equal to the task's tier. The prompt carries: the task text from the plan, the spec path, and the verification command. For `UI: yes` tasks, it also carries the paths of `DESIGN.md` and `PRODUCT.md`. Dependent tasks run after their dependencies.
 3. Read each implementer's report. `done` → confirm the verification on its branch yourself and integrate it into `studio/<slug>`. **After integrating, remove its worktree and branch** (`git worktree remove --force <path>` and `git branch -D <branch>`). Each worktree can have its own `node_modules` or venv, and letting them pile up fills the disk. **Cleanup never blocks the pipeline:** if the removal fails (on Windows, a process left running can lock the folder), record it in `state.md`, go on to the next task and try again in phase 6. `blocked` → apply the **stop conditions**.
 4. Mark progress in `plan.md` and `state.md` as each task closes.
+5. **Behaviour pass** (only when the build made or changed a screen people work in, mode `operate`). When every UI task is integrated, launch one `studio:implementer` with `model: "sonnet"`, without a worktree, on `studio/<slug>`. Its prompt is the text of [behaviour-pass.md](behaviour-pass.md), complete, plus the verification command. It adds press feedback, state-change transitions, reduced motion and two phone rules (viewport and theme colour, touch and tap), and leaves the layout as it is. Keep these criteria out of `spec.md`, `DESIGN.md` and the other implementers' prompts: on eval 021 the builds that got them before the screen existed lost the blind capture comparison, and the same criteria applied afterwards moved no element.
 
 ### Stop conditions
 

@@ -17,8 +17,8 @@ try { vendor = readJson(path.join(plugin, 'vendor.json')); } catch (e) { problem
 // README "Bundled skills" table: | **Name** 1.2.3 | ... (Context7 has no version and is skipped).
 let readme = '';
 try { readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8'); } catch (e) { problems.push(`README.md unreadable: ${e.code || e.message}`); }
-const rows = new Set([...readme.matchAll(/^\| \*\*(\w+)\*\*/gm)].map((m) => m[1].toLowerCase()));
-for (const m of readme.matchAll(/^\| \*\*(\w+)\*\* (\d[\d.]*)/gm)) {
+const rows = new Set([...readme.matchAll(/^\| \*\*([\w-]+)\*\*/gm)].map((m) => m[1].toLowerCase()));
+for (const m of readme.matchAll(/^\| \*\*([\w-]+)\*\* (\d[\d.]*)/gm)) {
   const entry = vendor[m[1].toLowerCase()];
   if (!entry) problems.push(`README lists ${m[1]} ${m[2]} but vendor.json has no such entry`);
   else if (entry.version !== m[2]) problems.push(`README says ${m[1]} ${m[2]} but vendor.json says ${entry.version}`);

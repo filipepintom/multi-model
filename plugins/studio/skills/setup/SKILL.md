@@ -29,9 +29,9 @@ With `--check`, stop here.
 
 For every ⚠️ or ❌ that has a fix below, explain in one sentence what you will change and why, then ask with AskUserQuestion (Apply / Skip). Never batch silent changes. **Every change must be reversible:** move instead of delete, disable instead of uninstall, and back up any file before editing it.
 
-**Bundled skills installed twice.** The studio plugin already ships Impeccable, Ponytail, graphify, Humanizer and the Context7 skill and MCP server. Copies installed elsewhere run in addition to the bundled ones.
+**Bundled skills installed twice.** The studio plugin already ships Impeccable, frontend-design, Ponytail, graphify, Humanizer and the Context7 skill and MCP server. Copies installed elsewhere run in addition to the bundled ones.
 - A global skill folder (`~/.claude/skills/<name>`): move it to `~/.claude/skills-disabled/<name>`. If it is a symlink, move only the link, never its target.
-- A plugin (`ponytail@…`, `impeccable@…`, `humanizer@…`, `graphify@…`, `context7@…`): `claude plugin disable <id>`. Tell the user how to re-enable it.
+- A plugin (`ponytail@…`, `impeccable@…`, `frontend-design@…`, `humanizer@…`, `graphify@…`, `context7@…`): `claude plugin disable <id>`. Tell the user how to re-enable it.
 - A `context7` MCP server in the user's `.claude.json`: `claude mcp remove context7 --scope user`, after showing the user its current entry (`claude mcp get context7`) so they can add it back.
 - Impeccable hooks in `~/.claude/settings.json`: first copy the file to `settings.json.bak-<YYYYMMDD-HHMM>`, then remove only the hook entries whose command contains `impeccable`. Keep every other hook and setting untouched, and show the user the removed entries.
 

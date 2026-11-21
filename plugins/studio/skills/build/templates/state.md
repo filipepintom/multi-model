@@ -2,7 +2,7 @@
 slug: <slug>
 request: "<original request>"
 phase: 0-prepare
-mode: <fast | full> — <triage reason>
+mode: <page | fast | full> — <triage reason>
 branch: studio/<slug>
 base: <base branch>
 started: <YYYY-MM-DD>

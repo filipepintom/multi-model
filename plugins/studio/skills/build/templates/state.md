@@ -2,6 +2,7 @@
 slug: <slug>
 request: "<original request>"
 phase: 0-prepare
+sessions: <the id of each session that worked on this run, comma-separated>
 mode: <page | fast | full> — <triage reason>
 branch: studio/<slug>
 base: <base branch>

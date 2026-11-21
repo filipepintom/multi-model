@@ -25,14 +25,14 @@ Flags:
 2. **False positives cost trust.** Everything goes through adversarial verification, and a refuted finding never reaches the backlog.
 3. **Prioritizing is the product.** At most 15 items in the backlog. A list of 80 problems gets nobody to act.
 4. **Incremental.** Each fix fits in a small PR and starts with a test. Never recommend rewrites.
-5. **State lives in files**, in `docs/studio/<slug>/`. If `state.md` already exists, resume from the recorded phase.
+5. **State lives in files**, in `docs/studio/<slug>/`. If `state.md` already exists, resume from the recorded phase and add the id of this session, `${CLAUDE_SESSION_ID}`, to its `sessions:` line if it is not there.
 
 ## Phase 0 — Prepare
 
 1. **Lessons:** the plugin injects into the context, in the "Studio knowledge (injected by the plugin)" section, the Plugin lessons and Your lessons; do not read them from disk. Apply the **General** part, and from the **Stack** part only the sections for this project's technologies. In a conflict, Your lessons prevail.
 2. Read the project's `CLAUDE.md` and README.
 3. The project must be a git repository (without it there is no history for the hotspots). Make sure `.claude/worktrees/` is in `.gitignore`.
-4. Set the slug `audit-<area>` and create `docs/studio/<slug>/state.md` from [templates/state.md](templates/state.md).
+4. Set the slug `audit-<area>` and create `docs/studio/<slug>/state.md` from [templates/state.md](templates/state.md). In `sessions:` write the id of this session, `${CLAUDE_SESSION_ID}`. When you resume a run that another session started, add this id to the ones already there. The compaction log uses the list to tell this run's sessions from the other sessions in the project, and it is how a session's transcript is found afterwards.
 
 ## Phase 1 — Scope
 
@@ -170,7 +170,9 @@ Ask which items go ahead to be fixed, with AskUserQuestion `multiSelect` with th
 For each item, in priority order, read [../build/SKILL.md](../build/SKILL.md) and follow it with the item's `request`, `--skip-idea` and the item's `mode` as `--fast` or `--full`. Additional rules:
 - the first task is **always** a test that reproduces the problem and **fails** before the fix. In a maintainability refactor, these are characterization tests that pin the current behavior;
 - one branch per item: `studio/<slug>-<id>`;
+- in each build's `state.md`, `sessions:` gets the session id you wrote in the audit's `state.md`. The build skill, read here as a file, shows `${CLAUDE_SESSION_ID}` without its value;
 - each build's gate 2 stays;
+- leave out the line that closes the build's phase 7 about starting the next run in a new session: the audit goes on here with the next item;
 - update the item's status in `report.md`: fixed, or blocked and why. Find the item's row in the backlog table by its id and change that line only: the rest of the report does not need to enter your context again.
 
 ## Phase 10 — Retro

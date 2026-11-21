@@ -2,6 +2,7 @@
 slug: audit-<area>
 request: "<original request>"
 phase: 0-prepare
+sessions: <the id of each session that worked on this run, comma-separated>
 scope: <whole repository | modules>
 lenses: correctness, security, maintainability
 started: <YYYY-MM-DD>

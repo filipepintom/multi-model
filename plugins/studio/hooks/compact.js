@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // PostCompact: records that a compaction happened during a studio build or audit, to measure whether the pipeline
 // outgrows the context window before adding any context management.
-// Appends one JSON line to docs/studio/<slug>/compactions.jsonl of the in-progress run (state.md with a phase other
-// than "done"; the most recently modified one if there are several). A separate file because the orchestrator
-// rewrites state.md each phase. Never stores the compaction summary: it carries project content.
-// Silent and fail-open: no output, always exit 0.
+// Appends one JSON line to docs/studio/<slug>/compactions.jsonl of the run this session is driving: the open run
+// whose state.md lists the session id in `sessions:` (the orchestrator writes it in phase 0 and on resume), with
+// "linked": true. A run that lists other sessions belongs to them and is never used: before this link, a run parked
+// at a gate collected the compactions of every other session in the project. A run with no session ids (older
+// runs) is used only when no run lists this session, the most recently modified one, with "linked": false.
+// A separate file because the orchestrator rewrites state.md each phase. Never stores the compaction summary: it
+// carries project content. Silent and fail-open: no output, always exit 0.
 
 const fs = require('fs');
 const path = require('path');
@@ -21,29 +24,49 @@ function root(data) {
   return candidates.find((d) => fs.existsSync(path.join(d, 'docs', 'studio'))) || null;
 }
 
-function inProgress(dir) {
-  const runs = [];
+// A closed run: "done", "superseded", or a phase that ends in "-done" (an --auto run that stops early writes "7-done").
+const CLOSED = /^(?:done|superseded|.*-done)$/;
+
+// The session ids in the `sessions:` line of a state.md. A placeholder (the template's <...>, or a ${...} that was
+// not substituted) is not an id.
+function sessionIds(text) {
+  const value = (/^sessions?:[ \t]*(.*)$/m.exec(text) || [])[1] || '';
+  if (/[<>${}]/.test(value)) return [];
+  return value.split(/[\s,[\]"']+/).filter(Boolean);
+}
+
+function inProgress(dir, session) {
+  const mine = [];
+  const unknown = [];
   for (const slug of fs.readdirSync(dir)) {
     const state = path.join(dir, slug, 'state.md');
     let text;
     try { text = fs.readFileSync(state, 'utf8'); } catch { continue; }
     const phase = (/^phase:\s*(.+?)\s*$/m.exec(text) || [])[1];
-    if (phase && phase !== 'done') runs.push({ slug, phase, mtime: fs.statSync(state).mtimeMs });
+    if (!phase || CLOSED.test(phase)) continue;
+    const ids = sessionIds(text);
+    const run = { slug, phase, mtime: fs.statSync(state).mtimeMs };
+    if (session && ids.includes(session)) mine.push(run);
+    else if (!ids.length) unknown.push(run);
   }
-  return runs.sort((a, b) => b.mtime - a.mtime)[0] || null;
+  const latest = (runs) => runs.sort((a, b) => b.mtime - a.mtime)[0];
+  if (mine.length) return { ...latest(mine), linked: true };
+  if (unknown.length) return { ...latest(unknown), linked: false };
+  return null;
 }
 
 function record(data) {
   const base = root(data);
   if (!base) return;
   const dir = path.join(base, 'docs', 'studio');
-  const run = inProgress(dir);
+  const run = inProgress(dir, data.session_id);
   if (!run) return;
   const line = {
     date: new Date().toISOString(),
     trigger: data.trigger || null,
     phase: run.phase,
     session: data.session_id || null,
+    linked: run.linked,
     ...(data.agent_id ? { agent: data.agent_id, agent_type: data.agent_type || null } : {}),
   };
   fs.appendFileSync(path.join(dir, run.slug, 'compactions.jsonl'), JSON.stringify(line) + '\n');

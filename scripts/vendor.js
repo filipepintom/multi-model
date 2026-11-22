@@ -6,6 +6,7 @@
 //   node scripts/vendor.js graphify   <graphify-skill-folder>
 //   node scripts/vendor.js humanizer  <humanizer-skill-folder>
 //   node scripts/vendor.js context7   <folder with SKILL.md (skills/context7-mcp) and the LICENSE of the upstash/context7 repo>
+//   node scripts/vendor.js frontend-design <root of Anthropic's frontend-design plugin (has skills/frontend-design)>
 //
 // Read the new code before updating: these skills run with the permissions of whoever uses the plugin.
 // The Impeccable detector binary (scripts/bin) is left out: the launcher downloads the right binary for each
@@ -20,7 +21,7 @@ const MANIFEST = path.join(ROOT, 'plugins', 'studio', 'vendor.json');
 
 const [name, source] = process.argv.slice(2);
 if (!name || !source) {
-  console.error('Usage: node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <source-folder>');
+  console.error('Usage: node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer|frontend-design> <source-folder>');
   process.exit(1);
 }
 // Every branch deletes the vendored folder before copying: a mistyped source must stop here, not after the delete.
@@ -168,6 +169,29 @@ if (name === 'impeccable') {
     version: fs.existsSync(versionFile) ? fs.readFileSync(versionFile, 'utf8').trim() : undefined,
     updated: today,
     notes: 'Changed: disable-model-invocation (only /studio:graphify). On first use it installs the graphifyy Python package.',
+  };
+} else if (name === 'frontend-design') {
+  // Source: the root of Anthropic's frontend-design plugin. The skill is copied unmodified. Its licence file is
+  // LICENSE.txt (the SKILL.md names it), so it is kept under that name and also copied as LICENSE, the name the
+  // licence test looks for.
+  const src = path.join(source, 'skills', 'frontend-design');
+  if (!fs.existsSync(path.join(src, 'SKILL.md')) || !fs.existsSync(path.join(src, 'LICENSE.txt'))) {
+    console.error(`${src} has no SKILL.md or no LICENSE.txt: nothing was changed.`);
+    process.exit(1);
+  }
+  const dest = path.join(SKILLS, 'frontend-design');
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(dest, { recursive: true });
+  fs.copyFileSync(path.join(src, 'SKILL.md'), path.join(dest, 'SKILL.md'));
+  fs.copyFileSync(path.join(src, 'LICENSE.txt'), path.join(dest, 'LICENSE.txt'));
+  fs.copyFileSync(path.join(src, 'LICENSE.txt'), path.join(dest, 'LICENSE'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(source, '.claude-plugin', 'plugin.json'), 'utf8'));
+  manifest['frontend-design'] = {
+    source: 'https://github.com/anthropics/claude-plugins-official (plugins/frontend-design)',
+    license: 'Apache-2.0',
+    version: pkg.version,
+    updated: today,
+    notes: 'Skill only, unmodified. Loaded by studio:designer in page mode, where the Impeccable hook is turned off for the project.',
   };
 } else {
   console.error(`Unknown skill: ${name}`);

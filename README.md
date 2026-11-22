@@ -64,7 +64,7 @@ To uninstall: `claude plugin uninstall studio@studio-local`. Your personal lesso
 
 ### Cost and data
 
-- **Cost:** a small task in fast mode is about 0.6–1 USD; a typical feature 2–5 USD; a greenfield app with UI 5–10 USD; an audit of ~1,000 lines about 5 USD.
+- **Cost:** a small task in fast mode is about 0.6–1 USD; a landing page in page mode about 2 USD; a typical feature 2–5 USD; a greenfield app with UI 5–10 USD; an audit of ~1,000 lines about 5 USD.
 - **Data:** code goes to Anthropic, as with any Claude Code session under your organisation's plan. Context7 receives only library names and documentation queries, never code. The Impeccable detector runs locally, with telemetry turned off by the plugin's hooks.
 
 ## Usage
@@ -73,10 +73,12 @@ To uninstall: `claude plugin uninstall studio@studio-local`. Your personal lesso
 
 Idea (critic) → Spec (**gate 1**) → Plan with model tiers → Parallel implementation in worktrees → Verification + independent review → Delivery (**gate 2**) → Retro
 
-- **Triage.** Small, low-risk changes take the **fast mode**: no critic, no separate plan, review on Sonnet. Anything with auth, data, concurrency or product decisions takes the full pipeline. `--fast` and `--full` force a mode.
+- **Triage.** A landing page or small static site takes the **page mode**: one designer agent gets your request word for word and builds the page, and a review checks facts and breakage. Small, low-risk changes take the **fast mode**: no critic, no separate plan, review on Sonnet. Anything with auth, data, concurrency or product decisions takes the full pipeline. `--fast` and `--full` force a mode.
 - **Gate 1 is a guided review.** The spec lists up to ~7 **decisions** that change the product, cost or risk. Each has options, trade-offs, a recommendation and the cost of changing it later. Approve all as recommended, or pick decisions to discuss one at a time. The agent argues for its recommendation and also gives the strongest case against it. Changes propagate through the spec, and the ones that go against a recommendation feed your personal preferences.
-- **Design.** Projects with a UI get a design step before gate 1: Impeccable writes `PRODUCT.md` and `DESIGN.md`, and you approve the visual direction. The visual system is the first UI task, implementers follow `DESIGN.md`, and the review runs the design detector on the running app at desktop and mobile sizes. The detector catches anti-patterns; it doesn't measure taste. The direction you approve at gate 1 is what makes the difference.
-- **Less code.** Ponytail's "smallest change that fully solves the task" rules are injected into every studio agent. Measured on the evals: 58% less code and 43% lower cost, at the same pass rate.
+- **Design.** Pages go through page mode, with Anthropic's frontend-design skill and no design step before it; you see the page at gate 2. Other projects with a UI get a design step before gate 1: Impeccable writes `PRODUCT.md` and `DESIGN.md`, and you approve the visual direction. The visual system is the first UI task, implementers follow `DESIGN.md`, and the review runs the design detector on the running app at desktop and mobile sizes. The detector catches anti-patterns; it doesn't measure taste. The direction you approve at gate 1 is what makes the difference.
+- **Behaviour pass.** When a build makes or changes a screen people work in, one implementer adds press feedback, state-change transitions, reduced motion and two phone rules (viewport and theme colour, touch and tap) after the screen is built, without touching the layout. Measured on one static-HTML brief; the fast-mode path was not exercised, and the phone rules were checked in Chrome's emulation, not on a phone.
+- **Page mode limits.** It was measured on one landing-page brief, in an empty project, by a blind jury that had agreed with the owner on 4 of 4 known pairs. It has no test or verify command, only the review of facts and breakage. Showing the page at gate 2 is untested, because the evals run without gates. App screens were not rerun. Outside the pipeline, `studio:frontend-design` and `studio:impeccable` are both loadable in an ordinary session, which is the overlap the Hallmark row below warns about.
+- **Less code.** Ponytail's "smallest change that fully solves the task" rules are injected into every studio agent except the page designer. Measured on the evals: 58% less code and 43% lower cost, at the same pass rate.
 - **Human-facing text** (`delivery.md`, READMEs, user docs) goes through Humanizer. Specs, plans and other files that agents read as contracts never do.
 - Other flags: `--skip-idea` (skip the critic's idea phase) and `--auto` (no gates, for evals only).
 
@@ -84,7 +86,7 @@ Each project gets `docs/studio/<slug>/` (state, spec, plan, review, delivery, re
 
 ### Audit: `/studio:audit "<area>"`
 
-Scope → Map → Objective baseline (tests, lint, dependencies, hotspots) → Independent lenses in parallel (correctness, security, maintainability) → Adversarial verification → Backlog of at most 15 items (**gate**) → each chosen item goes to `/studio:build`, starting with a test that reproduces the problem.
+Scope → Map → Objective baseline (tests, lint, dependencies, hotspots) → Independent lenses in parallel (correctness, security, maintainability) → Adversarial verification → Backlog of at most 15 items (**gate**: what next) → each chosen item runs as `/studio:build` in a new session, starting with a test that reproduces the problem. On a first whole-repository audit the gate may also propose starting again on a new branch, and it may propose `PRODUCT.md` and `DESIGN.md` (Impeccable `init` and `document`). Running `/studio:audit <slug>` again updates the statuses.
 
 The audit never changes code. Every finding needs `file:line`, the code and a concrete failing scenario. A verifier tries to refute each one, and refuted findings never reach the backlog. To add a lens, add one file to `plugins/studio/skills/audit/lenses/`.
 
@@ -101,10 +103,10 @@ The audit never changes code. Every finding needs `file:line`, the code and a co
 
 | Path | What it is |
 |---|---|
-| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `auditor` (Opus; Sonnet for maintainability), `verifier` (Sonnet; Opus for critical/high), `reverser` and `reverser-live` (Sonnet) |
+| `plugins/studio/agents/` | `critic` (Opus), `explorer` (Haiku), `implementer` (Sonnet), `reviewer` (Opus), `designer` (Opus, page mode), `auditor` (Opus; Sonnet for maintainability), `verifier` (Sonnet; Opus for critical/high), `reverser` and `reverser-live` (Sonnet) |
 | `plugins/studio/skills/build/`, `audit/`, `reverse/`, `retro/`, `setup/` | The studio's own commands and their templates |
-| `plugins/studio/skills/impeccable/`, `ponytail/`, `graphify/`, `humanizer/`, `context7-mcp/` | Bundled third-party skills (see [Bundled skills](#bundled-skills)) |
-| `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents and the build orchestrator, design detector |
+| `plugins/studio/skills/impeccable/`, `frontend-design/`, `ponytail/`, `graphify/`, `humanizer/`, `context7-mcp/` | Bundled third-party skills (see [Bundled skills](#bundled-skills)) |
+| `plugins/studio/hooks/` | Guardrails, knowledge injection, Ponytail injection into subagents and the build orchestrator, compaction log, design detector |
 | `plugins/studio/knowledge/lessons.md` | Base lessons shipped with the plugin |
 | `plugins/studio/scripts/doctor.js` | The read-only machine check behind `/studio:setup` |
 | `plugins/studio/.mcp.json` | The Context7 MCP server |
@@ -143,6 +145,7 @@ Pinned versions are in [`plugins/studio/vendor.json`](plugins/studio/vendor.json
 | Skill | Why it's in | How studio uses it |
 |---|---|---|
 | **Impeccable** 4.7.0 | The first real build had a functional but generic UI | Design step before gate 1, visual system task, design gate in review. Detector binary downloaded on first use; telemetry off |
+| **frontend-design** 1.1.1 (skill only) | On the landing-page eval the owner preferred the pages of plain Claude with this skill to the studio's (the studio pages were voted blind, these three were not) | Page mode: `studio:designer` loads it and builds the page from the request. The Impeccable hook is off in those projects. On eval 024, page mode won the jury majority in 9 of 9 pairs against the full pipeline (+2.1 points of 25, threshold 2), at about 2 USD against 5.4. Plain Claude with the skill still beat page mode in 3 of 3 pairs |
 | **Ponytail** 5.3.2 (skill only) | The first real build was "a simple app with a lot of code" | Injected into every `studio:*` subagent and the build orchestrator. A/B on evals 012–014: −58% code, −43% cost, 3/3 passing in both arms |
 | **graphify** 0.9.11 | Map of large codebases | Only on explicit call (`/studio:graphify`), so it doesn't take over unrelated sessions |
 | **Humanizer** 3.0.0 | Docs that don't read as AI-written | Delivery docs, READMEs, the audit's `report.md` prose |
@@ -174,9 +177,11 @@ Results go to `evals/results.csv`: pass/fail, cost, wall-clock time, turns, mode
 | Greenfield (idea phase on) | 014 expense split, 015 habit streaks |
 | Audit | 016 Node shop API, 017 Python expenses app (8 planted issues + 4 decoys each) |
 | Single agent | 018 verifier vs 4 false and 2 real findings, 019 critic vs a spec with 7 planted defects and 2 decoys, 020 reverser on a minified bundle with dead code and an injected comment (needs REA) |
-| Visual (blind jury) | 021 workshop app screen, 022 bakery landing page, 023 polish of an AI-looking clinic agenda |
+| Visual (blind jury) | 021 workshop app screen, 022 bakery landing page, 023 polish of an AI-looking clinic agenda, 024 Douro tours homepage |
 
 **Rule:** before adding a skill, changing a model or editing a prompt, commit, run the relevant evals with `--label` before and after, and compare. `--settings <file>` and `--extra-plugin <dir>` support A/B tests of plugins; `--stats <workspace>` measures code size; `--isolate` leaves out your personal skills, plugins, hooks and MCP servers; `--control` runs the task with no studio at all.
+
+`node evals/visual/craft.js <workspace> [<out>] [--frames]` measures what captures cannot show: never-ship motion patterns, press feedback and running animations after a click (in a real Chrome), the phone baseline, sideways overflow at 320 px, 390 px and 200% zoom, and the element boxes at rest.
 
 The visual evals' `check.js` only confirms the page exists and kept its content. Design is judged from screenshots by jurors who don't know which side is which; it needs Chrome, or `CHROME` set to its path:
 
@@ -196,7 +201,7 @@ The output in `evals/visual/out/` has `report.md`, `key.json` and `board.html`, 
 
 ### Updating bundled skills
 
-Read the new upstream code first, then run `node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer> <source-folder>`, bump the version in `plugins/studio/.claude-plugin/plugin.json`, run `node scripts/check-release.js`, run the evals, and commit.
+Read the new upstream code first, then run `node scripts/vendor.js <impeccable|ponytail|graphify|context7|humanizer|frontend-design> <source-folder>`, bump the version in `plugins/studio/.claude-plugin/plugin.json`, run `node scripts/check-release.js`, run the evals, and commit.
 
 The version pins installs: users only get a change when the version goes up. `check-release.js`, which CI runs, fails when a file under `plugins/studio/` (tests aside) changed after the last version bump.
 
@@ -206,13 +211,16 @@ New tools go in only when a real failure or an eval justifies them.
 
 | Tool | Status | Reason |
 |---|---|---|
-| Impeccable, Ponytail, graphify, Humanizer, Context7 | Bundled | See [Bundled skills](#bundled-skills) |
+| Impeccable, frontend-design, Ponytail, graphify, Humanizer, Context7 | Bundled | See [Bundled skills](#bundled-skills) |
 | REA | Optional, not bundled | 49 MB and frequent releases; `/studio:reverse` uses your own install. `reverser` gets only REA's static tools; runtime tools belong to `reverser-live`, which runs only with `--runtime` and an approved run list. Neither gets `uninstall_adb_package` or `push_adb_file`, and `reverser-live` also leaves out the raw consoles `gdb_console`, `execute_rizin_command`, `rizin_debug_command` and `cutter_command` |
 | Strix (dynamic pentesting) | Waiting | For a future deploy step, against staging |
-| addyosmani/agent-skills, thermo-nuclear review, Emil Kowalski design skills, 21st.dev Magic MCP | Waiting | No failure that justifies them yet |
+| Emil Kowalski design skills | Distilled, not bundled | The app-screen eval (021) showed no press feedback in any studio build. The skills cannot be bundled as they are (one is not loadable by agents, several write or delete files), so their motion and phone rules were distilled into a **behaviour pass** that runs after the screen is built. On copies of three 021 builds it took 9 to 12 of 16 checked items to 15 to 16, added press feedback and a transition on the changed item in all three, and left every element box unchanged, for about 0.25 USD; one of the three still had a single `theme-color` for two colour schemes. A build from the working copy ran the pass after the UI task, with the same result on its boxes. The same rules as spec criteria lost the capture jury 0 of 9. The full extraction and what is not wired are in [`docs/design-skills/emil-kowalski/`](docs/design-skills/emil-kowalski/README.md) |
+| addyosmani/agent-skills, thermo-nuclear review, 21st.dev Magic MCP | Waiting | No failure that justifies them yet |
 | pstack (full plugin) | Rejected | Its router competes with the orchestrator |
 | Hallmark | Rejected | Duplicates Impeccable; two design skills give contradictory instructions |
 | Taste, Unslop | Rejected as bundled skills | Same conflict as Hallmark. The visual evals borrow Taste's blind comparison. Tested on 2026-11-03 on top of plain Claude, one run each against a plain-Claude run that later proved unusually good. Unslop won 0 of 3. Taste won 023 against all three plain-Claude runs and also against the studio, but lost 022 by inventing content and using stock photos. It beat plain Claude on 021 in two of three runs and lost 021 to the studio. Inside the studio, used only for 023, it lost both runs to the plain studio: its standalone wins came from adding features, which the studio's spec keeps out |
+| ui-ux-pro-max | Rejected | Tested on eval 024 (landing page), 2026-11-20, three runs on plain Claude. The owner's blind vote: "pretty, but very generic AI design". The three runs came out as the same page (same two typefaces, same accent, two with the same headline), because its generator picks the look from the product category |
+| frontend-design inside the full pipeline | Rejected | Same eval. Swapped in for Impeccable, with the direction written to `DESIGN.md` and built by an implementer, it lost to the current studio 0 of 9 jurors. Five one-factor variants (no Ponytail, build all of `DESIGN.md`, effort high, the designer builds the first screen, a restraint rule on top of Impeccable) did not pass either. Only page mode, where one agent gets the whole request, beat the current studio; it did not reach plain Claude with the skill |
 | Scrapling | Rejected | No research failures to fix; its strength is bypassing anti-bot protection, which is a terms-of-service risk |
 | Agent-Reach | Rejected | Copies browser session cookies and installs through remote instructions run by the agent |
 | Harness² | Rejected for now | Linux and Vertex AI only; its core idea (improve the harness with evidence) is already covered by the evals |

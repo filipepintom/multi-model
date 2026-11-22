@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Injects the Ponytail rules (skills/ponytail/SKILL.md, included in the plugin):
-//   - SubagentStart: into the studio subagents (agent_type "studio:*"). SessionStart context does not reach subagents,
-//     and they are the ones who write the code. Subagents doing other work in the same session are not touched.
+//   - SubagentStart: into the studio subagents (agent_type "studio:*"), except studio:designer. SessionStart context
+//     does not reach subagents, and they are the ones who write the code. Subagents doing other work in the same
+//     session are not touched.
 //   - UserPromptSubmit: into the build orchestrator, on /studio:build.
 // A separate hook from knowledge.js because Claude Code caps each hook's additionalContext at 10,000 characters:
 // two hooks keep the lessons and Ponytail each under the cap.
@@ -28,7 +29,9 @@ function event(data) {
 }
 
 function wanted(name, data) {
-  if (name === 'SubagentStart') return String(data.agent_type || '').startsWith('studio:');
+  // The designer builds a page from the request: there the design is the scope, and "the least code" would cut it.
+  // On eval 024 the pages built under these rules were the plainest and lost every blind comparison.
+  if (name === 'SubagentStart') return String(data.agent_type || '').startsWith('studio:') && data.agent_type !== 'studio:designer';
   if (name === 'UserPromptSubmit') return /^\s*\/studio:build\b/.test(String(data.prompt ?? data.user_prompt ?? ''));
   return false;
 }

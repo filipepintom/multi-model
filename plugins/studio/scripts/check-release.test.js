@@ -22,7 +22,7 @@ function copy() {
     fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     fs.copyFileSync(path.join(ROOT, f), path.join(dir, f));
   }
-  for (const d of fs.readdirSync(path.join(ROOT, 'plugins/studio/skills'))) fs.mkdirSync(path.join(dir, 'plugins/studio/skills', d), { recursive: true });
+  for (const e of fs.readdirSync(path.join(ROOT, 'plugins/studio/skills'), { withFileTypes: true })) if (e.isDirectory()) fs.mkdirSync(path.join(dir, 'plugins/studio/skills', e.name), { recursive: true });
   const sh = path.join(dir, 'plugins/studio/skills/impeccable/scripts/impeccable');
   fs.mkdirSync(path.dirname(sh), { recursive: true });
   fs.writeFileSync(sh, '#!/bin/sh\n', { mode: 0o755 });
@@ -50,6 +50,15 @@ test('check-release fails on an unknown skill folder and a non-executable launch
   assert.match(out.stdout, /stray/);
   // no exec bit on Windows: the non-git launcher check does not apply there
   if (process.platform !== 'win32') assert.match(out.stdout, /launcher/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('check-release ignores a file such as .DS_Store in the skills folder', () => {
+  const dir = copy();
+  fs.writeFileSync(path.join(dir, 'plugins/studio/skills/.DS_Store'), '');
+  const r = check(dir);
+  assert.strictEqual(r.status, 0, r.stdout);
+  assert.doesNotMatch(r.stdout, /DS_Store/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 

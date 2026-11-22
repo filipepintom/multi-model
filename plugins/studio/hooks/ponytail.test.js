@@ -34,9 +34,10 @@ test('without hook_event_name the event comes from the fields', () => {
   assert.strictEqual(run({ prompt: '/studio:build x' }).hookEventName, 'UserPromptSubmit');
 });
 
-test('other agents, other prompts and bad input get nothing', () => {
+test('other agents, the page designer, other prompts and bad input get nothing', () => {
   for (const input of [
     { hook_event_name: 'SubagentStart', agent_type: 'Explore' },
+    { hook_event_name: 'SubagentStart', agent_type: 'studio:designer' },
     { hook_event_name: 'UserPromptSubmit', prompt: '/studio:audit payments' },
     { hook_event_name: 'UserPromptSubmit', prompt: 'please /studio:build x' },
     'not json',

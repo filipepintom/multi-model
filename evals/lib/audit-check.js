@@ -8,7 +8,12 @@
 //
 // Uso num check.js:
 //   const { runAuditCheck } = require(require('path').join(process.env.EVAL_LIB, 'audit-check.js'));
-//   runAuditCheck({ planted: [...], decoys: [...], minRecall: 0.75, maxDecoyHits: 1, maxReported: 15 });
+//   runAuditCheck({ planted: [...], decoys: [...], minRecall: 0.75, maxDecoyHits: 1, maxReported: 15, rebuild: 'no' });
+//
+// Opção rebuild (string; sem ela não se verifica): o veredicto de reconstrução que a auditoria escreve no frontmatter
+// de docs/studio/<slug>/state.md (mesma pasta do findings.json). Tem de ser candidate|no|not-eligible (pending = a
+// auditoria nunca o escreveu = falha) e igual ao valor pedido. rebuild, rebuild_signals, product e design vão sempre
+// para as METRICS (null se faltarem).
 //
 // Cada item plantado ou decoy:
 //   { id, file, anchor, after?, before?, keywords?, note? }
@@ -23,6 +28,7 @@ const { execSync } = require('child_process');
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low'];
 const VERDICTS = ['confirmed', 'plausible', 'refuted'];
+const REBUILD_VALUES = ['candidate', 'no', 'not-eligible'];
 const ALLOWED_WRITES = [/^docs\//, /^\.studio\//, /^\.claude\//, /^\.gitignore$/, /^\.eval-/];
 
 function fail(msg) {
@@ -51,6 +57,26 @@ function findFindingsFile(ws) {
   if (hits.length === 0) fail('não existe docs/studio/<slug>/findings.json');
   if (hits.length > 1) fail(`há mais do que um findings.json: ${hits.join(', ')}`);
   return hits[0];
+}
+
+// Lê só o primeiro bloco --- de <dir>/state.md. Valor = primeiro token em minúsculas (rebuild_signals: a linha toda).
+function readAuditState(dir) {
+  const out = { rebuild: null, rebuild_signals: null, product: null, design: null };
+  let text;
+  try {
+    text = fs.readFileSync(path.join(dir, 'state.md'), 'utf8');
+  } catch {
+    return out;
+  }
+  const m = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+  if (!m) return out;
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = /^(rebuild_signals|rebuild|product|design):[ \t]*(.*)$/.exec(line);
+    if (!kv || out[kv[1]] !== null) continue;
+    const value = kv[2].trim();
+    out[kv[1]] = kv[1] === 'rebuild_signals' ? value || null : value.split(/\s+/)[0]?.toLowerCase() || null;
+  }
+  return out;
 }
 
 function loadFindings(ws) {
@@ -114,7 +140,7 @@ function sourceChanges(ws) {
   return [...changed].filter((p) => !ALLOWED_WRITES.some((re) => re.test(p)));
 }
 
-function runAuditCheck({ planted, decoys = [], minRecall = 0.75, maxDecoyHits = 1, maxReported = 15 }) {
+function runAuditCheck({ planted, decoys = [], minRecall = 0.75, maxDecoyHits = 1, maxReported = 15, rebuild }) {
   const ws = process.cwd();
 
   const touched = sourceChanges(ws);
@@ -142,6 +168,8 @@ function runAuditCheck({ planted, decoys = [], minRecall = 0.75, maxDecoyHits = 
     else other++;
   }
 
+  const state = readAuditState(path.dirname(findFindingsFile(ws)));
+
   const metrics = {
     recall: `${found.length}/${planted.length}`,
     decoy_hits: decoyHits.length,
@@ -151,6 +179,10 @@ function runAuditCheck({ planted, decoys = [], minRecall = 0.75, maxDecoyHits = 
     plausible: findings.filter((f) => f.verdict === 'plausible').length,
     refuted: findings.filter((f) => f.verdict === 'refuted').length,
     missed,
+    rebuild: state.rebuild,
+    rebuild_signals: state.rebuild_signals,
+    product: state.product,
+    design: state.design,
   };
   console.log(`encontrados: ${found.join(', ') || '—'}`);
   console.log(`em falta:    ${missed.join(', ') || '—'}`);
@@ -162,8 +194,14 @@ function runAuditCheck({ planted, decoys = [], minRecall = 0.75, maxDecoyHits = 
   if (found.length / planted.length < minRecall) problems.push(`recall ${found.length}/${planted.length} abaixo de ${Math.round(minRecall * 100)}%`);
   if (decoyHits.length > maxDecoyHits) problems.push(`${decoyHits.length} falsos positivos em decoys (máximo ${maxDecoyHits})`);
   if (reported.length > maxReported) problems.push(`${reported.length} findings reportados (máximo ${maxReported}): uma auditoria útil prioriza`);
+  if (rebuild !== undefined) {
+    if (!fs.existsSync(path.join(path.dirname(findFindingsFile(ws)), 'state.md'))) problems.push('não existe docs/studio/<slug>/state.md');
+    else if (!REBUILD_VALUES.includes(state.rebuild) || state.rebuild !== rebuild) {
+      problems.push(`rebuild: esperado "${rebuild}", encontrado "${state.rebuild}" (sinais: ${state.rebuild_signals})`);
+    }
+  }
   if (problems.length) fail(problems.join('; '));
   console.log('ok');
 }
 
-module.exports = { runAuditCheck };
+module.exports = { runAuditCheck, readAuditState };

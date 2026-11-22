@@ -15,6 +15,10 @@
 
 Refuted in verification: <n> of <total>. They were left out of the backlog; the reason for each is in `findings.json`.
 
+## Starting again
+
+<!-- only when rebuild: candidate: the signals, what a rebuild is (a new branch, the old code kept), and that the user's answer about production decides -->
+
 ## Backlog
 
 | # | Id | Severity | Title | Location | Effort | Mode | Status |
@@ -32,7 +36,7 @@ Refuted in verification: <n> of <total>. They were left out of the backlog; the 
   ```
 - **Verification:** <confirmed/plausible: what was run or traced>
 - **Fix:** <incremental step>
-- **Request for the build:** `/studio:build --skip-idea --<fast|full> "<request>"`
+- **Request for the build:** `/studio:build --skip-idea --<fast|full> "<request, which starts with its [<slug> F1] tag>"`
 
 ## Also observed
 

@@ -17,8 +17,8 @@ try { vendor = readJson(path.join(plugin, 'vendor.json')); } catch (e) { problem
 // README "Bundled skills" table: | **Name** 1.2.3 | ... (Context7 has no version and is skipped).
 let readme = '';
 try { readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8'); } catch (e) { problems.push(`README.md unreadable: ${e.code || e.message}`); }
-const rows = new Set([...readme.matchAll(/^\| \*\*(\w+)\*\*/gm)].map((m) => m[1].toLowerCase()));
-for (const m of readme.matchAll(/^\| \*\*(\w+)\*\* (\d[\d.]*)/gm)) {
+const rows = new Set([...readme.matchAll(/^\| \*\*([\w-]+)\*\*/gm)].map((m) => m[1].toLowerCase()));
+for (const m of readme.matchAll(/^\| \*\*([\w-]+)\*\* (\d[\d.]*)/gm)) {
   const entry = vendor[m[1].toLowerCase()];
   if (!entry) problems.push(`README lists ${m[1]} ${m[2]} but vendor.json has no such entry`);
   else if (entry.version !== m[2]) problems.push(`README says ${m[1]} ${m[2]} but vendor.json says ${entry.version}`);
@@ -29,7 +29,7 @@ if (readme) for (const k of Object.keys(vendor)) if (!rows.has(k)) problems.push
 const allowed = new Set(['build', 'audit', 'reverse', 'retro', 'setup', ...Object.keys(vendor).map((k) => (k === 'context7' ? 'context7-mcp' : k))]);
 const skillsDir = path.join(plugin, 'skills');
 if (fs.existsSync(skillsDir)) {
-  for (const d of fs.readdirSync(skillsDir)) if (!allowed.has(d)) problems.push(`skills/${d} is neither a studio skill nor in vendor.json`);
+  for (const e of fs.readdirSync(skillsDir, { withFileTypes: true })) if (e.isDirectory() && !allowed.has(e.name)) problems.push(`skills/${e.name} is neither a studio skill nor in vendor.json`);
 }
 
 // The Impeccable launcher must be executable: git mode 100755, or the file mode when the folder is not a git checkout.

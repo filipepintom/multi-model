@@ -29,7 +29,7 @@ if (readme) for (const k of Object.keys(vendor)) if (!rows.has(k)) problems.push
 const allowed = new Set(['build', 'audit', 'reverse', 'retro', 'setup', ...Object.keys(vendor).map((k) => (k === 'context7' ? 'context7-mcp' : k))]);
 const skillsDir = path.join(plugin, 'skills');
 if (fs.existsSync(skillsDir)) {
-  for (const d of fs.readdirSync(skillsDir)) if (!allowed.has(d)) problems.push(`skills/${d} is neither a studio skill nor in vendor.json`);
+  for (const e of fs.readdirSync(skillsDir, { withFileTypes: true })) if (e.isDirectory() && !allowed.has(e.name)) problems.push(`skills/${e.name} is neither a studio skill nor in vendor.json`);
 }
 
 // The Impeccable launcher must be executable: git mode 100755, or the file mode when the folder is not a git checkout.

@@ -20,7 +20,7 @@ Flags:
 
 ## Principles
 
-1. **State lives in files.** Everything in `docs/studio/<slug>/` in the project: `state.md`, `idea.md`, `spec.md`, `plan.md`, `review.md`, `delivery.md`, `retro.md`. Update `state.md` at the end of each phase. If `state.md` already exists for this slug, **resume** from the recorded phase and add the id of this session, `${CLAUDE_SESSION_ID}`, to its `sessions:` line if it is not there. To resume in a new session, the user runs `/studio:build` again with the same request or slug: the lessons and the Ponytail rules are injected only on that command.
+1. **State lives in files.** Everything in `docs/studio/<slug>/` in the project: `state.md`, `idea.md`, `spec.md`, `plan.md`, `review.md`, `delivery.md`, `retro.md`. Update `state.md` at the end of each phase. If `state.md` already exists for this slug, **resume** from the recorded phase and add the id of this session, `${CLAUDE_SESSION_ID}`, to its `sessions:` line if it is not there. To resume in a new session, the user runs `/studio:build` again with the same request or slug: the lessons and the Ponytail rules are injected only on that command. When the request points to earlier work in this conversation ("the idea discussed above", a spike, a review), write what it points to in the `request:` line of `state.md`, and carry into `spec.md` (or `idea.md`) every fact, decision and constraint the run takes from that conversation: from gate 1 on, nothing the run needs may live only in the conversation.
 2. **Objective gates.** "Done" means green verification, not an agent's opinion. You run the verification yourself, but its log stays out of your context: send the output to a file in a system temp folder, read the exit code and, on red, only the failing part.
 3. **Two human gates**: approval of the spec (gate 1) and of the delivery (gate 2). Between them, run on your own and only interrupt the user for an escalation.
 4. **Routing by task type**, decided in the plan, not ad hoc.
@@ -54,7 +54,7 @@ There is no gate 1 in this mode, because there is no spec to approve: the reques
 
 For small tasks, the fixed cost of the critic and of an Opus review weighs more than the work itself. Fast mode keeps the objective gates and cuts the ceremony.
 
-1. **Short spec:** write only `spec.md` with the goal, testable acceptance criteria and the single task (tier `haiku` or `sonnet`). There is no `plan.md`, critic or explorer, unless you need to locate code. **Gate 1** (except `--auto`): show only the criteria, with `spec.md` as a file as in the full gate 1, and ask for confirmation.
+1. **Short spec:** write only `spec.md` with the goal, testable acceptance criteria and the single task (tier `haiku` or `sonnet`). There is no `plan.md`, critic or explorer, unless you need to locate code. **Gate 1** (except `--auto`): show only the criteria, with `spec.md` as a file as in the full gate 1, and ask for confirmation. After the confirmation, step 7 of the full gate 1 (earlier work in this session) applies too.
 2. **Implementation:** create the branch `studio/<slug>` and launch one `studio:implementer` with `model` equal to the tier, **without a worktree** (it is a single task).
 3. **Verification:** run `.studio/verify`. Red → one new attempt with the exact error. If the task made or changed a screen people work in, run the behaviour pass (phase 4, step 5) now and verify again.
 4. **Review:** launch `studio:reviewer` with `model: "sonnet"`. Save the verdict in `review.md`. If the task touches UI, the implementer follows the existing `DESIGN.md` and the review includes the design gate. What the review leaves unproven is handled as in phase 5, step 5.
@@ -93,6 +93,7 @@ The goal is for the user to spend their time on the 3 or 4 decisions that matter
 4. **Change the scope:** take the request, update the scope and the criteria, and show what changed.
 5. If a change touches the architecture, the stack, the data or security, run `studio:critic` again on the affected parts only.
 6. Repeat the question from step 2 until the user approves. Record in `state.md` the decisions the user changed and why: they feed the preferences in the retro.
+7. **Earlier work in this session** (except `--auto`): if this conversation already held other work before `/studio:build` was typed (a spike, a long discussion, another run), record the approval in `state.md` and then say once, in the message that confirms it, that the implementation can go on in a new session with `/studio:build <slug>`, which resumes from `state.md` with the lessons injected again, and that you carry on here unless the user prefers that. Do not ask and do not wait: go on to phase 3. One real build was typed with the session already at 342k tokens and added 295k more.
 
 ### Design (projects with an interface)
 

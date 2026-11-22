@@ -1,6 +1,6 @@
 ---
 slug: <slug>
-request: "<original request>"
+request: "<original request; a leading [tag] is kept as it came>"
 phase: 0-prepare
 sessions: <the id of each session that worked on this run, comma-separated>
 mode: <page | fast | full> — <triage reason>

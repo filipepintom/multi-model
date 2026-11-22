@@ -86,7 +86,7 @@ Each project gets `docs/studio/<slug>/` (state, spec, plan, review, delivery, re
 
 ### Audit: `/studio:audit "<area>"`
 
-Scope → Map → Objective baseline (tests, lint, dependencies, hotspots) → Independent lenses in parallel (correctness, security, maintainability) → Adversarial verification → Backlog of at most 15 items (**gate**) → each chosen item goes to `/studio:build`, starting with a test that reproduces the problem.
+Scope → Map → Objective baseline (tests, lint, dependencies, hotspots) → Independent lenses in parallel (correctness, security, maintainability) → Adversarial verification → Backlog of at most 15 items (**gate**: what next) → each chosen item runs as `/studio:build` in a new session, starting with a test that reproduces the problem. On a first whole-repository audit the gate may also propose starting again on a new branch, and it may propose `PRODUCT.md` and `DESIGN.md` (Impeccable `init` and `document`). Running `/studio:audit <slug>` again updates the statuses.
 
 The audit never changes code. Every finding needs `file:line`, the code and a concrete failing scenario. A verifier tries to refute each one, and refuted findings never reach the backlog. To add a lens, add one file to `plugins/studio/skills/audit/lenses/`.
 

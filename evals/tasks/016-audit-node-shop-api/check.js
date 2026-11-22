@@ -111,4 +111,4 @@ const decoys = [
   },
 ];
 
-runAuditCheck({ planted, decoys, minRecall: 0.75, maxDecoyHits: 1, maxReported: 15 });
+runAuditCheck({ planted, decoys, minRecall: 0.75, maxDecoyHits: 1, maxReported: 15, rebuild: 'no' });
